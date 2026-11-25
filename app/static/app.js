@@ -668,6 +668,233 @@ async function getAiRecommendation() {
 }
 
 /* ========================================================================= */
+/* RECOVERY CONFIDENCE ENGINE LOGIC                                         */
+/* ========================================================================= */
+let recoveryConfidenceState = {
+  score: 86,
+  targetTimeStr: "14:30",
+  targetHours: 2.0,
+  isDrifted: false,
+  isApproved: false,
+  isResolved: false,
+  timeline: [
+    { time: "T+01m", text: "Supplier C stock confirmed (8 units) → confidence set to 82%" },
+    { time: "T+02m", text: "Supplier D stock confirmed (12 units) → confidence increased to 86%" },
+    { time: "T+03m", text: "Technician Shift A crew confirmed on-site (2/2 ready)" },
+    { time: "T+05m", text: "Machine sensors calibrated & baseline readiness verified" }
+  ]
+};
+
+function formatTargetRestartTime(recoveryHours = 2.0) {
+  const now = new Date();
+  const target = new Date(now.getTime() + Math.round((recoveryHours || 2.0) * 3600 * 1000));
+  const hh = String(target.getHours()).padStart(2, "0");
+  const mm = String(target.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function initRecoveryConfidence(data) {
+  const p = data?.recommended_plan || data?.best_expected_plan || (data?.plans && data.plans[0]);
+  const recoveryHours = p?.recovery_time_hours || data?.request?.max_hours || 2.0;
+  recoveryConfidenceState.targetHours = recoveryHours;
+  recoveryConfidenceState.targetTimeStr = formatTargetRestartTime(recoveryHours);
+  recoveryConfidenceState.isApproved = !!data?.approved;
+
+  if (data?.approved) {
+    if (!recoveryConfidenceState.timeline.some(t => t.text.includes("authorized by human operator"))) {
+      recoveryConfidenceState.timeline.push({
+        time: "T+08m",
+        text: "Recovery plan authorized by human operator → logistics dispatch confirmed"
+      });
+    }
+  }
+
+  updateRecoveryConfidenceUI();
+}
+
+function simulateConfidenceDrift(drift) {
+  recoveryConfidenceState.isDrifted = !!drift;
+  if (drift) {
+    recoveryConfidenceState.score = 68;
+    if (!recoveryConfidenceState.timeline.some(t => t.text.includes("ETA delayed by 25 min"))) {
+      recoveryConfidenceState.timeline.push({
+        time: "T+14m",
+        text: "Supplier D ETA delayed by 25 min → confidence reduced to 68%",
+        isAlert: true
+      });
+      recoveryConfidenceState.timeline.push({
+        time: "T+14m",
+        text: "Fallback supplier reservation prepared (Prepared for operator approval)",
+        isAlert: true
+      });
+    }
+    logActivity("confidence_drift delay_min=25 new_score=68 band=at_risk fallback=prepared");
+  } else {
+    recoveryConfidenceState.score = 86;
+    recoveryConfidenceState.timeline.push({
+      time: "T+18m",
+      text: "Transit delay mitigated · Nominal delivery restored → confidence increased to 86%"
+    });
+    logActivity("confidence_restored nominal_schedule=true score=86 band=on_track");
+  }
+
+  updateRecoveryConfidenceUI();
+}
+
+function reviewFallbackContingency() {
+  logActivity("fallback_review_initiated by=operator mode=manual_gate_preserved");
+  const triadFallback = $("triadFallbackCard");
+  if (triadFallback) {
+    triadFallback.scrollIntoView({ behavior: "smooth", block: "center" });
+    triadFallback.classList.add("highlight-triad");
+    setTimeout(() => triadFallback.classList.remove("highlight-triad"), 2500);
+  }
+}
+
+function validateRestartAndCloseIncident() {
+  if (recoveryConfidenceState.isResolved) return;
+  recoveryConfidenceState.isResolved = true;
+
+  recoveryConfidenceState.timeline.push({
+    time: "T+22m",
+    text: "Restart validation complete · Machine telemetry within normal limits · Incident resolved"
+  });
+
+  logActivity("incident_resolved operator_signoff=verified telemetry=normal line=resumed");
+
+  document.querySelectorAll("[data-btn-validate-restart]").forEach(btn => {
+    btn.disabled = true;
+    btn.textContent = "✓ Incident Resolved · Production Restored";
+    btn.style.background = "#15803d";
+  });
+
+  document.querySelectorAll("[data-restart-closure-notice]").forEach(el => {
+    el.innerHTML = "<b class=\"good\">✓ Line Restart Confirmed & Validated:</b> Physical vibration (0.02 mm/s), bearing temperature (52.4°C), and spindle load (1,450 RPM) confirmed within normal limits. Incident formally closed.";
+  });
+
+  document.querySelectorAll("[data-telemetry-overall-badge]").forEach(el => {
+    el.textContent = "✓ RESOLVED & OPERATIONAL";
+    el.style.background = "#bbf7d0";
+    el.style.color = "#166534";
+  });
+
+  const incHdr = $("incidentHeader");
+  if (incHdr) {
+    const statusPill = incHdr.querySelector(".incident-status-pill");
+    if (statusPill) {
+      statusPill.textContent = "RESOLVED";
+      statusPill.style.background = "#dcfce7";
+      statusPill.style.color = "#166534";
+      statusPill.style.borderColor = "#86efac";
+    }
+  }
+
+  updateRecoveryConfidenceUI();
+}
+
+function resetRecoveryConfidence() {
+  recoveryConfidenceState = {
+    score: 86,
+    targetTimeStr: "14:30",
+    targetHours: 2.0,
+    isDrifted: false,
+    isApproved: false,
+    isResolved: false,
+    timeline: [
+      { time: "T+01m", text: "Supplier C stock confirmed (8 units) → confidence set to 82%" },
+      { time: "T+02m", text: "Supplier D stock confirmed (12 units) → confidence increased to 86%" },
+      { time: "T+03m", text: "Technician Shift A crew confirmed on-site (2/2 ready)" },
+      { time: "T+05m", text: "Machine sensors calibrated & baseline readiness verified" }
+    ]
+  };
+  updateRecoveryConfidenceUI();
+}
+
+function updateRecoveryConfidenceUI() {
+  const score = recoveryConfidenceState.score;
+  const isDrifted = recoveryConfidenceState.isDrifted;
+  const targetTime = recoveryConfidenceState.targetTimeStr;
+
+  let bandClass = "band-on-track";
+  let bandLabel = "● On track (80–100%)";
+  if (score < 60) {
+    bandClass = "band-critical";
+    bandLabel = "✕ Intervention required (<60%)";
+  } else if (score < 80) {
+    bandClass = "band-at-risk";
+    bandLabel = "▲ At risk (60–79%)";
+  }
+
+  document.querySelectorAll("[data-confidence-score]").forEach(el => {
+    el.textContent = `${score}%`;
+  });
+
+  document.querySelectorAll("[data-confidence-band]").forEach(el => {
+    el.className = `confidence-band-badge ${bandClass}`;
+    el.textContent = bandLabel;
+  });
+
+  document.querySelectorAll("[data-confidence-target]").forEach(el => {
+    if (isDrifted) {
+      el.textContent = `${score}% likely to restart before target deadline (${targetTime}) · ETA transit slip detected`;
+    } else {
+      el.textContent = `${score}% likely to restart before target deadline (${targetTime})`;
+    }
+  });
+
+  document.querySelectorAll("[data-factor-status='eta']").forEach(el => {
+    if (isDrifted) {
+      el.textContent = "Transit Slip (+25m)";
+      el.className = "factor-card-status status-warning";
+    } else {
+      el.textContent = "On Schedule";
+      el.className = "factor-card-status status-good";
+    }
+  });
+
+  document.querySelectorAll("[data-factor-val='eta']").forEach(el => {
+    if (isDrifted) {
+      el.textContent = "+25 min drift (Delayed)";
+    } else {
+      el.textContent = "0 min drift (Express transit)";
+    }
+  });
+
+  document.querySelectorAll("[data-factor-meta='eta']").forEach(el => {
+    if (isDrifted) {
+      el.textContent = "Transit variance on primary courier leg";
+    } else {
+      el.textContent = "Dispatched via direct courier";
+    }
+  });
+
+  document.querySelectorAll("[data-fallback-card]").forEach(el => {
+    if (score < 70) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  });
+
+  document.querySelectorAll("[data-restart-validation]").forEach(el => {
+    if (recoveryConfidenceState.isApproved) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  });
+
+  document.querySelectorAll("[data-confidence-timeline]").forEach(container => {
+    container.innerHTML = recoveryConfidenceState.timeline.map(item => `
+      <div class="timeline-item ${item.isAlert ? 'drift-alert' : ''}">
+        <span class="timeline-time">${esc(item.time)}</span>
+        <span class="timeline-text">${item.isAlert ? '⚠️ ' : '• '}${esc(item.text)}</span>
+      </div>
+    `).join("");
+  });
+}
+
+/* ========================================================================= */
 /* MODULE 4: APPROVAL & DOSSIER REPORT                                       */
 /* ========================================================================= */
 async function approve() {
@@ -699,6 +926,8 @@ async function approve() {
     if (approveBtn) approveBtn.disabled = true;
 
     logActivity("plan_approved by=human_operator purchase=not_automated status=authorized");
+    recoveryConfidenceState.isApproved = true;
+    updateRecoveryConfidenceUI();
     loadActionPackage(runId);
   } catch (e) {
     showError(e.message);
@@ -942,6 +1171,7 @@ function resetDemo() {
   // Reset fleet highlight
   document.querySelectorAll(".fleet-node").forEach(n => n.classList.remove("selected-asset"));
 
+  resetRecoveryConfidence();
   logActivity("demo_reset target=module_incident");
   navigate("#/incident");
 }
@@ -1272,6 +1502,7 @@ function render(data) {
     $("recapPurchase") && ($("recapPurchase").textContent = money(p.total_purchase_cost));
     $("recapExposure") && ($("recapExposure").textContent = money(p.total_exposure));
     if (runId) loadActionPackage(runId);
+    initRecoveryConfidence(data);
 
     $("executiveHeadline") && ($("executiveHeadline").textContent = `${data.request?.machine || 'Machinery'} is down.`);
 
@@ -2229,3 +2460,4 @@ async function handleNewIncidentSubmit(e) {
 loadConfig();
 restoreSession();
 loadBenchmarkSummary();
+updateRecoveryConfidenceUI();

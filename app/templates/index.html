@@ -435,6 +435,172 @@
             <!-- Dynamic Plan KPI Card Container -->
             <div id="plan" class="plan-container"></div>
 
+            <!-- ============================================================= -->
+            <!-- RECOVERY CONFIDENCE ENGINE PANEL (MODULE 3)                  -->
+            <!-- ============================================================= -->
+            <div id="planRecoveryConfidence" class="panel recovery-confidence-panel">
+              <div class="panel-head-clean">
+                <div class="confidence-head-left">
+                  <div class="confidence-title-row">
+                    <h3 class="panel-title-clean">Recovery Confidence Engine</h3>
+                    <span class="confidence-engine-pill">CLOSED-LOOP ASSURANCE</span>
+                  </div>
+                  <div class="confidence-score-block">
+                    <div class="confidence-score-wrapper">
+                      <span class="confidence-score-number" data-confidence-score>86%</span>
+                      <span class="confidence-band-badge band-on-track" data-confidence-band>● On track (80–100%)</span>
+                    </div>
+                    <div class="confidence-target-line" data-confidence-target>86% likely to restart before target deadline (14:30)</div>
+                  </div>
+                </div>
+                <div class="confidence-controls">
+                  <span class="sim-label">OPERATIONAL DRIFT TEST:</span>
+                  <button type="button" class="btn-drift-toggle btn-drift-amber" onclick="simulateConfidenceDrift(true)">⚠️ Trigger +25m Transit Delay</button>
+                  <button type="button" class="btn-drift-toggle btn-drift-green" onclick="simulateConfidenceDrift(false)">↺ Restore Nominal Schedule</button>
+                </div>
+              </div>
+
+              <!-- 6 Evidence Factors Only -->
+              <div class="confidence-factors-grid">
+                <div class="confidence-factor-card" data-factor="stock">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Supplier Stock Confirmation</span>
+                    <span class="factor-card-status status-good" data-factor-status="stock">Confirmed</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="stock">100% Committed Allocation</div>
+                  <div class="factor-card-meta" data-factor-meta="stock">Supplier C (8) + Supplier D (12) confirmed</div>
+                </div>
+
+                <div class="confidence-factor-card" data-factor="reliability">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Supplier Reliability</span>
+                    <span class="factor-card-status status-good" data-factor-status="reliability">High Track Record</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="reliability">98.4% Fulfillment Rate</div>
+                  <div class="factor-card-meta" data-factor-meta="reliability">Audited Tier-1 industrial vendors</div>
+                </div>
+
+                <div class="confidence-factor-card" data-factor="eta">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Delivery ETA / ETA Drift</span>
+                    <span class="factor-card-status status-good" data-factor-status="eta">On Schedule</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="eta">0 min drift (Express transit)</div>
+                  <div class="factor-card-meta" data-factor-meta="eta">Dispatched via direct courier</div>
+                </div>
+
+                <div class="confidence-factor-card" data-factor="technician">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Technician Availability</span>
+                    <span class="factor-card-status status-good" data-factor-status="technician">Crew Ready</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="technician">2 / 2 Techs Allocated</div>
+                  <div class="factor-card-meta" data-factor-meta="technician">Shift A crew on-site & standby</div>
+                </div>
+
+                <div class="confidence-factor-card" data-factor="installation">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Installation Duration</span>
+                    <span class="factor-card-status status-good" data-factor-status="installation">Nominal</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="installation">45 min standard procedure</div>
+                  <div class="factor-card-meta" data-factor-meta="installation">Within allocated 1.0h labor window</div>
+                </div>
+
+                <div class="confidence-factor-card" data-factor="telemetry">
+                  <div class="factor-card-head">
+                    <span class="factor-card-name">Machine Telemetry Readiness</span>
+                    <span class="factor-card-status status-good" data-factor-status="telemetry">Sensors Online</span>
+                  </div>
+                  <div class="factor-card-value" data-factor-val="telemetry">Pre-check Normal Limits</div>
+                  <div class="factor-card-meta" data-factor-meta="telemetry">Telemetry bus active & calibrated</div>
+                </div>
+              </div>
+
+              <!-- Fallback Recommendation Card (Visibly prepared when confidence drops below 70%) -->
+              <div class="confidence-fallback-card hidden" data-fallback-card>
+                <div class="fallback-card-banner">
+                  <div class="fallback-banner-left">
+                    <span class="fallback-tag">CONTINGENCY FALLBACK</span>
+                    <span class="fallback-pill">Prepared for operator approval</span>
+                  </div>
+                  <span class="fallback-status-warning">⚠️ Confidence dropped below 70% (At Risk)</span>
+                </div>
+                <div class="fallback-card-body">
+                  <div class="fallback-spec-line">
+                    <span class="spec-label">Prepared Contingency Plan:</span>
+                    <span class="spec-value">Activate Supplier B Local Emergency Direct Courier (20 units)</span>
+                  </div>
+                  <div class="fallback-spec-line">
+                    <span class="spec-label">Estimated Transit:</span>
+                    <span class="spec-value">1.5 hrs direct · Restores recovery margin ahead of target deadline</span>
+                  </div>
+                  <div class="fallback-governance-note">
+                    ⚠️ <b>Prepared for operator approval:</b> No purchase, booking, or dispatch has been executed automatically. Operator authorization is strictly required.
+                  </div>
+                  <div class="fallback-btn-row">
+                    <button type="button" class="btn-fallback-action" onclick="reviewFallbackContingency()">
+                      Review Prepared Fallback Contingency →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Confidence Change Timeline -->
+              <div class="confidence-timeline-section">
+                <div class="timeline-head-row">
+                  <span class="timeline-title">Confidence Change Timeline</span>
+                  <span class="timeline-sub">Closed-loop assurance event log</span>
+                </div>
+                <div class="confidence-timeline-list" data-confidence-timeline>
+                  <!-- Populated by JavaScript -->
+                </div>
+              </div>
+
+              <!-- Restart Validation State (Visible after plan authorization) -->
+              <div class="restart-validation-section hidden" data-restart-validation>
+                <div class="restart-validation-banner">
+                  <div class="restart-banner-left">
+                    <span class="restart-tag">POST-INSTALLATION RESTART VALIDATION</span>
+                    <span class="restart-pill">Operator verification mandatory</span>
+                  </div>
+                  <span class="restart-telemetry-badge" data-telemetry-overall-badge>● TELEMETRY IN RANGE</span>
+                </div>
+                <div class="restart-telemetry-grid">
+                  <div class="telemetry-node">
+                    <span class="telemetry-lbl">Vibration Telemetry</span>
+                    <b class="telemetry-val good">0.02 mm/s</b>
+                    <small class="telemetry-limit">Limit: &lt; 0.05 mm/s (Normal)</small>
+                  </div>
+                  <div class="telemetry-node">
+                    <span class="telemetry-lbl">Bearing Temperature</span>
+                    <b class="telemetry-val good">52.4°C</b>
+                    <small class="telemetry-limit">Limit: &lt; 65°C (Normal)</small>
+                  </div>
+                  <div class="telemetry-node">
+                    <span class="telemetry-lbl">Spindle Speed / Load</span>
+                    <b class="telemetry-val good">1,450 RPM</b>
+                    <small class="telemetry-limit">Nominal: 1,450 RPM (100%)</small>
+                  </div>
+                  <div class="telemetry-node">
+                    <span class="telemetry-lbl">Safety Interlocks</span>
+                    <b class="telemetry-val good">All 4 Channels Clear</b>
+                    <small class="telemetry-limit">No active sensor faults</small>
+                  </div>
+                </div>
+                <div class="restart-closure-box">
+                  <div class="restart-closure-notice" data-restart-closure-notice>
+                    Telemetry sensors confirm physical parameters are within normal limits. Incident closure strictly requires human operator sign-off.
+                  </div>
+                  <div class="restart-btn-group">
+                    <button type="button" class="btn-validate-restart" data-btn-validate-restart onclick="validateRestartAndCloseIncident()">
+                      ✓ Operator Sign-Off: Validate Telemetry & Mark Incident Resolved
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Decision Triad: Best Expected vs Safe Plan vs Contingency Fallback Plan B -->
             <div class="panel decision-triad-panel">
               <div class="panel-head-clean">
@@ -707,6 +873,172 @@
                 <small>TOTAL ECONOMIC EXPOSURE</small>
                 <b id="recapExposure">—</b>
                 <span class="recap-sub">Includes downtime cost</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================= -->
+          <!-- RECOVERY CONFIDENCE ENGINE PANEL (MODULE 4)                  -->
+          <!-- ============================================================= -->
+          <div id="approvalRecoveryConfidence" class="panel recovery-confidence-panel">
+            <div class="panel-head-clean">
+              <div class="confidence-head-left">
+                <div class="confidence-title-row">
+                  <h3 class="panel-title-clean">Recovery Confidence Engine</h3>
+                  <span class="confidence-engine-pill">CLOSED-LOOP ASSURANCE</span>
+                </div>
+                <div class="confidence-score-block">
+                  <div class="confidence-score-wrapper">
+                    <span class="confidence-score-number" data-confidence-score>86%</span>
+                    <span class="confidence-band-badge band-on-track" data-confidence-band>● On track (80–100%)</span>
+                  </div>
+                  <div class="confidence-target-line" data-confidence-target>86% likely to restart before target deadline (14:30)</div>
+                </div>
+              </div>
+              <div class="confidence-controls">
+                <span class="sim-label">OPERATIONAL DRIFT TEST:</span>
+                <button type="button" class="btn-drift-toggle btn-drift-amber" onclick="simulateConfidenceDrift(true)">⚠️ Trigger +25m Transit Delay</button>
+                <button type="button" class="btn-drift-toggle btn-drift-green" onclick="simulateConfidenceDrift(false)">↺ Restore Nominal Schedule</button>
+              </div>
+            </div>
+
+            <!-- 6 Evidence Factors Only -->
+            <div class="confidence-factors-grid">
+              <div class="confidence-factor-card" data-factor="stock">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Supplier Stock Confirmation</span>
+                  <span class="factor-card-status status-good" data-factor-status="stock">Confirmed</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="stock">100% Committed Allocation</div>
+                <div class="factor-card-meta" data-factor-meta="stock">Supplier C (8) + Supplier D (12) confirmed</div>
+              </div>
+
+              <div class="confidence-factor-card" data-factor="reliability">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Supplier Reliability</span>
+                  <span class="factor-card-status status-good" data-factor-status="reliability">High Track Record</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="reliability">98.4% Fulfillment Rate</div>
+                <div class="factor-card-meta" data-factor-meta="reliability">Audited Tier-1 industrial vendors</div>
+              </div>
+
+              <div class="confidence-factor-card" data-factor="eta">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Delivery ETA / ETA Drift</span>
+                  <span class="factor-card-status status-good" data-factor-status="eta">On Schedule</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="eta">0 min drift (Express transit)</div>
+                <div class="factor-card-meta" data-factor-meta="eta">Dispatched via direct courier</div>
+              </div>
+
+              <div class="confidence-factor-card" data-factor="technician">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Technician Availability</span>
+                  <span class="factor-card-status status-good" data-factor-status="technician">Crew Ready</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="technician">2 / 2 Techs Allocated</div>
+                <div class="factor-card-meta" data-factor-meta="technician">Shift A crew on-site & standby</div>
+              </div>
+
+              <div class="confidence-factor-card" data-factor="installation">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Installation Duration</span>
+                  <span class="factor-card-status status-good" data-factor-status="installation">Nominal</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="installation">45 min standard procedure</div>
+                <div class="factor-card-meta" data-factor-meta="installation">Within allocated 1.0h labor window</div>
+              </div>
+
+              <div class="confidence-factor-card" data-factor="telemetry">
+                <div class="factor-card-head">
+                  <span class="factor-card-name">Machine Telemetry Readiness</span>
+                  <span class="factor-card-status status-good" data-factor-status="telemetry">Sensors Online</span>
+                </div>
+                <div class="factor-card-value" data-factor-val="telemetry">Pre-check Normal Limits</div>
+                <div class="factor-card-meta" data-factor-meta="telemetry">Telemetry bus active & calibrated</div>
+              </div>
+            </div>
+
+            <!-- Fallback Recommendation Card (Visibly prepared when confidence drops below 70%) -->
+            <div class="confidence-fallback-card hidden" data-fallback-card>
+              <div class="fallback-card-banner">
+                <div class="fallback-banner-left">
+                  <span class="fallback-tag">CONTINGENCY FALLBACK</span>
+                  <span class="fallback-pill">Prepared for operator approval</span>
+                </div>
+                <span class="fallback-status-warning">⚠️ Confidence dropped below 70% (At Risk)</span>
+              </div>
+              <div class="fallback-card-body">
+                <div class="fallback-spec-line">
+                  <span class="spec-label">Prepared Contingency Plan:</span>
+                  <span class="spec-value">Activate Supplier B Local Emergency Direct Courier (20 units)</span>
+                </div>
+                <div class="fallback-spec-line">
+                  <span class="spec-label">Estimated Transit:</span>
+                  <span class="spec-value">1.5 hrs direct · Restores recovery margin ahead of target deadline</span>
+                </div>
+                <div class="fallback-governance-note">
+                  ⚠️ <b>Prepared for operator approval:</b> No purchase, booking, or dispatch has been executed automatically. Operator authorization is strictly required.
+                </div>
+                <div class="fallback-btn-row">
+                  <button type="button" class="btn-fallback-action" onclick="reviewFallbackContingency()">
+                    Review Prepared Fallback Contingency →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Confidence Change Timeline -->
+            <div class="confidence-timeline-section">
+              <div class="timeline-head-row">
+                <span class="timeline-title">Confidence Change Timeline</span>
+                <span class="timeline-sub">Closed-loop assurance event log</span>
+              </div>
+              <div class="confidence-timeline-list" data-confidence-timeline>
+                <!-- Populated by JavaScript -->
+              </div>
+            </div>
+
+            <!-- Restart Validation State (Visible after plan authorization) -->
+            <div class="restart-validation-section hidden" data-restart-validation>
+              <div class="restart-validation-banner">
+                <div class="restart-banner-left">
+                  <span class="restart-tag">POST-INSTALLATION RESTART VALIDATION</span>
+                  <span class="restart-pill">Operator verification mandatory</span>
+                </div>
+                <span class="restart-telemetry-badge" data-telemetry-overall-badge>● TELEMETRY IN RANGE</span>
+              </div>
+              <div class="restart-telemetry-grid">
+                <div class="telemetry-node">
+                  <span class="telemetry-lbl">Vibration Telemetry</span>
+                  <b class="telemetry-val good">0.02 mm/s</b>
+                  <small class="telemetry-limit">Limit: &lt; 0.05 mm/s (Normal)</small>
+                </div>
+                <div class="telemetry-node">
+                  <span class="telemetry-lbl">Bearing Temperature</span>
+                  <b class="telemetry-val good">52.4°C</b>
+                  <small class="telemetry-limit">Limit: &lt; 65°C (Normal)</small>
+                </div>
+                <div class="telemetry-node">
+                  <span class="telemetry-lbl">Spindle Speed / Load</span>
+                  <b class="telemetry-val good">1,450 RPM</b>
+                  <small class="telemetry-limit">Nominal: 1,450 RPM (100%)</small>
+                </div>
+                <div class="telemetry-node">
+                  <span class="telemetry-lbl">Safety Interlocks</span>
+                  <b class="telemetry-val good">All 4 Channels Clear</b>
+                  <small class="telemetry-limit">No active sensor faults</small>
+                </div>
+              </div>
+              <div class="restart-closure-box">
+                <div class="restart-closure-notice" data-restart-closure-notice>
+                  Telemetry sensors confirm physical parameters are within normal limits. Incident closure strictly requires human operator sign-off.
+                </div>
+                <div class="restart-btn-group">
+                  <button type="button" class="btn-validate-restart" data-btn-validate-restart onclick="validateRestartAndCloseIncident()">
+                    ✓ Operator Sign-Off: Validate Telemetry & Mark Incident Resolved
+                  </button>
+                </div>
               </div>
             </div>
           </div>

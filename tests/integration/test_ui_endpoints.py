@@ -63,6 +63,15 @@ async def test_ui_index_contains_all_phase7_elements():
         assert 'id="actionPackagePanel"' in html
         assert 'id="keyboardModal"' in html
 
+        # Recovery Confidence Engine Panels
+        assert 'id="planRecoveryConfidence"' in html
+        assert 'id="approvalRecoveryConfidence"' in html
+        assert "Recovery Confidence Engine" in html
+        assert "Supplier Stock Confirmation" in html
+        assert "Delivery ETA / ETA Drift" in html
+        assert "data-fallback-card" in html
+        assert "data-restart-validation" in html
+
         # Logs Module Elements
         assert 'id="step-btn-logs"' in html
         assert 'id="module-logs"' in html
