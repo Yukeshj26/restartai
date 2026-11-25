@@ -1,240 +1,282 @@
-# RestartAI — Emergency Production Recovery Agent
+# RestartAI — Autonomous Emergency Production Recovery Agent
 
-RestartAI is an AI-powered emergency production recovery agent for factories. Instead of choosing a supplier only by purchase price, it dynamically builds the fastest feasible recovery plan from live supplier conversations, technician constraints, recovery time, and downtime economics.
+> **“We did not find the cheapest supplier. We found the fastest feasible way to restart production.”**
 
-## What is implemented
+[![CI](https://github.com/your-org/restartai/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/restartai/actions)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688)
+![Persistence](https://img.shields.io/badge/Storage-SQLite%20WAL-lightgrey)
+![Governance](https://img.shields.io/badge/Governance-Human--in--the--Loop-orange)
+![Tests](https://img.shields.io/badge/Tests-79%20Passing-brightgreen)
 
-1. Factory enters the failed machine, part, quantity, recovery deadline and downtime cost.
-2. Supplier calls run in **DEMO** or **LIVE CALL-E** mode.
-3. Supplier conversations are converted into structured offers, including a compatibility-confidence score per offer.
-4. Partial stock creates a real shortfall and triggers adaptive supplier discovery.
-5. Multiple supplier legs can be combined.
-6. A local maintenance knowledge base determines demo technician requirements and installation time.
-7. Python deterministically calculates material arrival, installation, total recovery time and economic exposure.
-8. Recovery plans are compared and the best feasible plan is recommended. **Up to 3 alternative plans are shown alongside it** for transparency, so the human approver can see what was ruled out and why.
-9. Human approval is required before the workflow can mark a plan approved. No purchasing is automated.
-10. Demo mode is deterministic and requires no API key, internet, Gemini/Groq key, or real phone calls.
-11. **AI recommendation (optional, Claude-powered)** — explains the already-selected plan in plain English without ever recalculating cost, time, or feasibility itself. See "AI recommendation" section below.
-12. **Activity timeline** — every recovery/replan/recommendation/approval action is logged with a timestamp in the UI, giving a readable audit trail of the incident response.
-13. **Downloadable recovery report** — a one-click plain-text export of the incident, offers, recommended plan, alternatives considered, AI explanation, and approval status, suitable for attaching to an incident postmortem.
+---
 
-## Why CALL-E matters
+## 1. Executive Summary
 
-Many real suppliers may not expose inventory through APIs or structured digital systems. CALL-E lets RestartAI interact with suppliers through natural phone conversations and turn those conversations into structured operational data.
+When an industrial machine breaks down, conventional procurement relies on two flawed heuristics:
+1. **Cheapest-First**: Sourcing from the cheapest vendor, triggering 18h–26h freight delays and catastrophic downtime costs.
+2. **Fastest-Single**: Paying massive express premiums to a single supplier, only to suffer line stoppages when that vendor experiences partial stockouts.
 
-The key differentiator is the **adaptive recovery workflow**: if Supplier C has only 8 of 20 required parts, RestartAI does not discard it. It calls the next supplier for the remaining quantity and constructs a split plan when that is faster/economically feasible.
+**RestartAI** is a deterministic **Sense $\rightarrow$ Decide $\rightarrow$ Act** autonomous recovery agent. It detects machine stoppage via IoT telemetry, interrogates suppliers across conversational voice/telephony, dynamically arbitrages partial stock shortfalls into multi-leg delivery splits, and prepares a human-gated operational action package before production restart.
 
-## Architecture
+---
+
+## 2. Non-Negotiable Invariants
+
+1. **Python-Only Math & Ranking**: The LLM is strictly used for natural language extraction and stakeholder explanation. Arithmetic, financial exposure calculation, technician scheduling, and ranking are 100% deterministic Python.
+2. **Human Approval Mandatory**: Autonomous systems must not execute unreviewed financial or physical commitments. "Act" means preparing vendor Purchase Orders, workforce SMS dispatches, and CMMS tickets as drafts. Nothing is purchased or dispatched without explicit operator sign-off.
+3. **Deterministic DEMO Default**: Operates completely offline without external credentials, LLM keys, or live telephony. LIVE mode is isolated behind explicit confirmation and E.164 phone validation.
+4. **Golden Scenario Invariant**: On `CNC Production Line 4` (Part: `SKF 6205-2RS`, Qty: 20, Max Deadline: 3.0h, Loss: ₹5,000/hr), the engine deterministically outputs:
+   - **Recommended Plan**: Supplier C (8 units @ ₹180) + Supplier D (12 units @ ₹190)
+   - **Recovery Time**: 2.0 hours (1.5h arrival + 30m install)
+   - **Total Purchase Cost**: ₹3,720
+   - **Downtime Loss**: ₹10,000
+   - **Total Economic Exposure**: **₹13,720** (Optimal, vs ₹16,900 single-source alternative)
+5. **Explicit Simulation Labeling**: Any synthetic scenario or benchmark is clearly labeled `SIMULATED SUPPLIER RESPONSES` and `SYNTHETIC BENCHMARK`.
+
+---
+
+## 3. End-to-End Architecture
 
 ```text
-FACTORY USER
-     |
-     v
-+---------------------+
-|    RestartAI UI     |
-+---------------------+
-     |
-     v
-+---------------------+
-|  Recovery Engine    |
-+---------------------+
-   /        |         \
-  v         v          v
-CALL-E   Maintenance   Optional LLM
-Agent    Knowledge     (language only)
-         Base
-  |
-  v
-Supplier phone calls
-  |
-  v
-Dynamic replanning
-  |
-  v
-Recovery Plan Engine
-  |
-  v
-Human Approval
++---------------------------------------------------------------------------------------------------+
+|                                       RESTARTAI ARCHITECTURE                                      |
++---------------------------------------------------------------------------------------------------+
+
+     [STAGE 1: SENSE]                         [STAGE 2: DECIDE]                      [STAGE 3: ACT]
+ Industrial IoT Telemetry               Deterministic Uncertainty Planner         Human-in-the-Loop Action
+ 
+  +--------------------+                     +-----------------------+            +-----------------------+
+  | SCADA / Vibration  |                     |  Reliability Haircuts |            |  Vendor Purchase      |
+  | Sensor (POST /api/ |                     |  & Uncertainty Buffer |            |  Order Drafts (C + D) |
+  | events/fault)      |                     +-----------+-----------+            +-----------+-----------+
+  +---------+----------+                                 |                                    |
+            |                                            v                                    v
+            v                                +-----------------------+            +-----------------------+
+  +--------------------+                     |    Decision Triad     |            |  Workforce Dispatch   |
+  | Asset Registry     |                     | (Best Expected / Safe |            |  SMS (Lead Technician)|
+  | (Criticality & KB) |                     | / Fallback Plan B)    |            +-----------+-----------+
+  +---------+----------+                     +-----------+-----------+                        |
+            |                                            |                                    v
+            v                                            v                        +-----------------------+
+  +--------------------+                     +-----------------------+            |  Plant Leadership     |
+  | Incident Auto-Gen  |                     | Economic Sensitivity  |            |  Executive Brief      |
+  | (Machine/Part/Rate)|                     | & Breakeven Curve     |            +-----------+-----------+
+  +---------+----------+                     +-----------+-----------+                        |
+            |                                            |                                    v
+            v                                            v                        +-----------------------+
+  +--------------------+   Live Dialogue     +-----------------------+   Human    |  CMMS Work Order JSON |
+  | Telephony Service  |===================> | Optimal Plan Ranking  |=========>  |  (SAP PM / IBM Maximo)|
+  | (CALL-E or DEMO)   |   Transcripts &     | (Min Total Exposure)  |  Sign-Off  +-----------------------+
+  +--------------------+   Confidence        +-----------------------+
 ```
 
-Technical principle:
+```mermaid
+flowchart LR
+    subgraph SENSE["Stage 1: SENSE"]
+        A["Sensor Anomaly\n(RMS 8.4 mm/s)"] --> B["Asset Registry\n(CNC Line 4)"]
+        B --> C["Incident Auto-Creation\n(₹5,000/hr · 20 units)"]
+    end
 
-- **CALL-E** = real-world supplier communication
-- **Optional LLM** = language understanding/extraction only
-- **Maintenance KB** = technician/task knowledge
-- **Python** = deterministic planning, arithmetic and optimization
-- **Human** = final approval
+    subgraph DECIDE["Stage 2: DECIDE"]
+        C --> D["Supplier Dialing\n(CALL-E / DEMO)"]
+        D --> E["The Shortfall Moment\n(Supplier C has 8/20)"]
+        E --> F["Adaptive Replan\n(Supplier D called for 12)"]
+        F --> G["Decision Triad\n(Best / Safe / Plan B)"]
+        G --> H["Deterministic Exposure\n(Min Rs 13,720)"]
+    end
 
-The LLM is deliberately not allowed to decide technician count, feasibility, final recovery time, arithmetic, or supplier ranking.
+    subgraph ACT["Stage 3: ACT"]
+        H --> I["Operator Review\n& Authorization"]
+        I --> J["Vendor PO Drafts"]
+        I --> K["Technician SMS"]
+        I --> L["CMMS Ticket JSON"]
+    end
+```
 
-## Maintenance knowledge base
+---
 
-`data/maintenance_tasks.json` contains 10 illustrative demo maintenance tasks. These are **demo knowledge-base values, not universal industrial standards**.
+## 4. Empirical Algorithm Benchmark (35 Seeded Incidents)
 
-For example, `bearing_replacement` uses 2 technicians and 30 minutes. The UI also supports factory/user overrides.
+> [!NOTE]
+> **LABEL: SYNTHETIC BENCHMARK**. Simulated across 35 seeded manufacturing breakdown scenarios (CNC lines, injection molders, stamping presses, packaging conveyors, cold headers, SMT placers, extrusion lines) to compare split-sourcing optimization against heuristic defaults.
 
-## Setup — Windows PowerShell
+| Performance Metric | Strategy 1: Cheapest-First | Strategy 2: Fastest-Single | Strategy 3: RestartAI (Adaptive Split) |
+| :--- | :---: | :---: | :---: |
+| **On-Time Recovery Rate** | **0.0%** (0/35) | **60.0%** (21/35) | **80.0%** (28/35) |
+| **Deadline Breaches** | 35 breaches (100%) | 14 breaches (40%) | **7 breaches (20%)** |
+| **Average Production Downtime** | 22.60 hours | 4.53 hours | **2.34 hours** |
+| **Average Purchase Outlay** | **₹4,108.15** | ₹6,220.09 | ₹5,164.56 |
+| **Average Total Economic Exposure** | ₹144,158.91 | ₹34,047.06 | **₹19,467.25** |
+| **Financial Savings vs Baseline** | Baseline | ₹110,111.85 (76.4%) | **₹124,691.66 (86.5%)** |
 
-```powershell
-cd D:\restartai
+### Counterfactual Procurement Explainer (The Golden Scenario)
+
+```text
++------------------------------------------------------------------------------------------------+
+| COUNTERFACTUAL AUDIT: CNC PRODUCTION LINE 4 (SKF 6205-2RS, 20 Units, Rs 5,000/hr Loss)         |
++------------------------------------------------------------------------------------------------+
+| Strategy 1: Cheapest-First (Supplier A Alone)                                                  |
+| - Purchase Cost:  20 units x Rs 150/u  = Rs 3,000.00 (Saves Rs 720 on parts!)                  |
+| - Downtime Loss:  24.5h shutdown x Rs 5,000/hr = Rs 122,500.00                                 |
+| - Total Exposure: Rs 125,500.00 (DEADLINE BREACHED BY 21.5h · Rs 111,780 Penalty vs RestartAI) |
++------------------------------------------------------------------------------------------------+
+| Strategy 2: Fastest-Single (Supplier B Courier Alone)                                          |
+| - Purchase Cost:  20 units x Rs 220/u  = Rs 4,400.00 (Expedited Courier Premium)               |
+| - Downtime Loss:  2.5h shutdown x Rs 5,000/hr  = Rs 12,500.00                                  |
+| - Total Exposure: Rs 16,900.00 (Rs 3,180 Penalty vs RestartAI)                                 |
++------------------------------------------------------------------------------------------------+
+| Strategy 3: RestartAI (Supplier C 8u + Supplier D 12u Split)                                   |
+| - Purchase Cost:  (8 x Rs 180) + (12 x Rs 190) = Rs 3,720.00                                   |
+| - Downtime Loss:  2.0h shutdown x Rs 5,000/hr  = Rs 10,000.00                                  |
+| - Total Exposure: Rs 13,720.00 (OPTIMAL · Rs 111,780 SAVED VS CHEAPEST)                       |
++------------------------------------------------------------------------------------------------+
+```
+
+---
+
+## 5. Live 3-Minute Hackathon Demo Script
+
+For a live 3-minute hackathon demo, click **`▶ Run Full Demo`** on the top navigation bar (or press <kbd>D</kbd>):
+
+* **Minute 1: SENSE (Event-Driven Trigger)**
+  1. Show the **Factory Fleet & Incident Board**.
+  2. Click **`⚡ Simulate Machine Fault`** on `CNC Production Line 4`.
+  3. The real-time vibration alert (`VIB-ACCEL-04`, RMS 8.4 mm/s > 7.0 mm/s limit) auto-populates the incident without manual data entry.
+  4. Pitch: *"A spindle bearing just seized on Line 4. At ₹5,000/hr, every minute of delay burns capital."*
+
+* **Minute 2: DECIDE (The Shortfall Moment)**
+  1. Click **`Start Recovery Agent`**. The UI transitions to `#calls`.
+  2. Supplier A answers (24h freight — too slow). Supplier B answers (2h express courier — expensive).
+  3. **The Highlight Moment**: Supplier C answers with only 8 units.
+  4. Pitch: *"Traditional procurement either gives up on Supplier C or waits for next-day delivery. RestartAI locks C's 8 units and autonomously dials Supplier D for the remaining 12."*
+  5. The quota progress bar pulses and fills from 40% to 100% as Supplier D confirms 12 units.
+
+* **Minute 3: ACT & GOVERNANCE (Proof & Sign-Off)**
+  1. Advance to `#plan`. Highlight the **Hero Exposure Cards** (Total: ₹13,720 vs ₹16,900 single-source).
+  2. Scroll to the **Counterfactual Audit**: Show that picking the cheapest vendor would have caused a ₹125,500 loss (+₹111,780 penalty).
+  3. Advance to `#approval`. Point to the generated **Action Package**:
+     - PO-REC-xxx-C (8 units) and PO-REC-xxx-D (12 units)
+     - Workforce SMS formatted for Lead Technician R. Sharma
+     - CMMS Work Order JSON matching SAP PM schema
+  4. Click **`✓ Authorize & Approve Recovery Plan`**.
+  5. Pitch: *"Python calculated every number. The AI only explained. The human operator made the final call."*
+
+---
+
+## 6. Quickstart & Setup
+
+### Prerequisites
+- Python 3.11, 3.12, or 3.14
+- Git
+
+### Installation
+
+```bash
+# 1. Clone repository
+git clone https://github.com/your-org/restartai.git
+cd restartai
+
+# 2. Set up virtual environment
 python -m venv .venv
+
+# Windows PowerShell:
 .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-uvicorn app.main:app --reload
+# Linux / macOS / WSL:
+source .venv/bin/activate
+
+# 3. Install pinned dependencies
+pip install -r requirements-dev.txt
+
+# 4. Configure local environment (DEMO mode default, no keys required)
+cp .env.example .env
 ```
 
-Open `http://127.0.0.1:8000`.
+### Launch Application
 
-If PowerShell blocks activation:
+```bash
+# Launch FastAPI app with live reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+Open **`http://127.0.0.1:8000`** in any modern web browser.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.venv\Scripts\Activate.ps1
+Alternatively, use the convenience scripts:
+```bash
+# Linux / macOS / WSL:
+./run.sh run
+
+# Windows PowerShell:
+.\run.ps1 run
+
+# Or via Makefile:
+make run
 ```
 
-## DEMO mode
+### Run with Docker
 
-`.env`:
-
-```env
-CALLE_API_KEY=
-CALL_E_MODE=demo
-CALLE_BASE_URL=https://api.heycall-e.com
+```bash
+docker build -t restartai:latest .
+docker run -p 8000:8000 restartai:latest
 ```
 
-Demo mode makes no network requests and no phone calls.
+---
 
-Use:
+## 7. Testing & Verification
 
-- Machine: CNC Production Line 4
-- Part: SKF 6205-2RS
-- Quantity: 20
-- Max recovery: 3 hours
-- Downtime cost: ₹5,000/hour
-- Available technicians: 3
+The project includes 79 unit, integration, and property-based tests verifying zero arithmetic regressions:
 
-The deterministic demo sequence is:
+```bash
+# Run complete test suite (79 tests)
+python -m pytest -v
 
-- A: 20 units, ₹150, 24h
-- B: 20 units, ₹220, 2h
-- C: 8 units, ₹180, 0.5h pickup
-- D: 12 units, ₹190, 1.5h delivery
+# Run the locked Golden Scenario regression test
+python -m pytest tests/integration/test_golden_scenario.py -v
 
-RestartAI discovers the C shortfall, calls D on the next replan action, and compares C+D against the alternatives.
+# Run property-based planner invariants
+python -m pytest tests/unit/test_planner_properties.py -v
 
-Expected recommended plan:
-
-```text
-C: 8 × ₹180 = ₹1,440
-D: 12 × ₹190 = ₹2,280
-Purchase = ₹3,720
-
-Material arrival = 1.5h
-Installation = 0.5h
-Total recovery = 2h
-
-Downtime exposure = ₹5,000 × 2 = ₹10,000
-Total economic exposure = ₹13,720
+# Or via convenience scripts
+make test
+make golden
 ```
 
-Supplier B has a 2-hour arrival but costs ₹4,400, giving ₹14,400 total exposure. Therefore C+D is recommended.
+### What the Tests Verify
+- **Golden Scenario Lock**: Plan C + D strictly produces ₹13,720 exposure, 2.0h recovery, ₹3,720 purchase.
+- **Never Over-Purchases**: Total units allocated across legs never exceed requested quota; legs never exceed vendor inventory.
+- **Deadline Feasibility**: If any combination meets the deadline, the planner finds it.
+- **Global Optimum Guarantee**: Planner choices strictly match independent brute-force search.
+- **Persistence Resilience**: Runs, offers, decisions, and audit trails survive server restarts in SQLite WAL mode.
+- **Human Governance**: API rejects automated procurement execution.
 
-## LIVE CALL-E mode
+---
 
-Never paste your key into chat or frontend code. Put it only in your local `.env`:
+## 8. Defensibility FAQ
 
-```env
-CALLE_API_KEY=YOUR_LOCAL_SECRET
-CALL_E_MODE=live
-CALLE_BASE_URL=https://api.heycall-e.com
-```
+### Q1: Why not let the LLM do the planning?
+LLMs are probabilistic token predictors prone to hallucinations, arithmetic errors, and inconsistent constraint satisfaction. In manufacturing, a 1-hour calculation mistake costs thousands of dollars. RestartAI delegates arithmetic, ranking, and constraint satisfaction to deterministic Python, reserving the LLM strictly for speech-to-text extraction and executive summaries.
 
-Use authorized, consenting supplier/test numbers in valid E.164 form, for example `+14155550100`. The UI requires an explicit LIVE confirmation before dispatch. The backend keeps the API key server-side and uses stable idempotency keys.
+### Q2: What if a supplier answers with messy or conflicting data?
+Phase 3 introduced structured status classifications (`CONFIRMED`, `TENTATIVE`, `CONFLICTING`, `UNAVAILABLE`, `CALLBACK_PROMISED`), verbatim dialogue source quotes, extraction confidence scores, and scripted chaos scenarios.
 
-CALL-E calls are created by the FastAPI backend with `POST /v1/calls`, `Authorization: Bearer ...`, `Content-Type: application/json`, and a stable `Idempotency-Key`. RestartAI then polls `GET /v1/calls/{call_id}` until `completed`, `failed`, or `canceled` and maps the completed structured result into the recovery engine.
+### Q3: How does the planner handle uncertainty?
+Phase 4 introduced deterministic reliability scores and uncertainty haircuts: tentative or low-reliability (< 0.85) supplier offers receive a 25% quantity haircut and a +30m arrival buffer. The system outputs a **Decision Triad**: Best Expected Plan, Confirmed Safe Plan, and Precomputed Plan B Fallback.
 
-### Live CALL-E setup
+### Q4: Does the agent automatically purchase parts?
+**Never.** The agent prepares validated drafts (vendor Purchase Orders, crew SMS messages, CMMS ticket JSON). Dispatch requires explicit human sign-off.
 
-1. Get a CALL-E API key and put it only in local `.env`.
-2. Set `CALLE_API_KEY`, `CALL_E_MODE=live`, and `CALLE_BASE_URL=https://api.heycall-e.com`.
-3. Start FastAPI and open the app.
-4. Enter an authorized E.164 phone number for Supplier A.
-5. Select LIVE CALL-E, confirm the warning, and click **TEST LIVE CALL**.
+---
 
-DEMO simulates deterministic supplier responses. LIVE sends actual phone calls through CALL-E. A queued response means CALL-E accepted the request; it is not shown as completed until status polling reports `completed` with a structured result.
+## 9. Keyboard Shortcuts
 
-Do not use the placeholder demo numbers in LIVE mode.
+Press <kbd>?</kbd> anywhere in the application to toggle the shortcuts menu:
+- <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> / <kbd>4</kbd>: Switch between modules (Incident, Calls, Plan, Approval).
+- <kbd>D</kbd>: Run full 3-minute hackathon demo walkthrough.
+- <kbd>R</kbd>: Reset demo scenario to clean initial baseline.
+- <kbd>Space</kbd>: Advance to next module when current stage completes.
+- <kbd>Esc</kbd>: Dismiss modal dialogs, transcript viewer, and chat assistant.
 
-## AI recommendation (optional, pluggable provider)
+---
 
-After a recovery plan is generated, the **GET AI RECOMMENDATION** button on the plan panel asks an LLM to explain, in plain English, why the already-computed plan is the right call — it never recalculates cost, time, or feasibility itself; those stay 100% deterministic Python. If no API key is configured for the selected provider, it falls back to a short templated summary built from the same plan data, so the demo still works without any key.
+## 10. License
 
-Three providers are supported, chosen with `LLM_PROVIDER`:
-
-```env
-LLM_PROVIDER=gemini   # gemini | anthropic | grok
-
-# Gemini (default) — genuinely free tier, no credit card, via Google AI Studio
-GEMINI_API_KEY=YOUR_LOCAL_SECRET
-GEMINI_MODEL=gemini-2.5-flash
-
-# Anthropic (Claude) — paid, needs billing set up on console.anthropic.com
-ANTHROPIC_API_KEY=YOUR_LOCAL_SECRET
-ANTHROPIC_MODEL=claude-sonnet-5
-
-# xAI (Grok) — free credit availability varies, check x.ai/api at signup time
-GROK_API_KEY=YOUR_LOCAL_SECRET
-GROK_MODEL=grok-4.1-fast
-```
-
-Only the key matching your chosen `LLM_PROVIDER` needs to be set. Like `CALLE_API_KEY`, never paste any of these keys into chat, frontend code, or version control — they stay server-side in `.env` only.
-
-## Tests
-
-```powershell
-pytest -q
-```
-
-Tests cover:
-
-- full-stock supplier
-- partial + second supplier
-- no over-purchasing
-- no feasible supplier
-- technician shortage
-- recovery time including installation
-- economic exposure
-- best-plan selection
-- maximum recovery-time constraint
-- demo mode without credentials
-- human approval
-- idempotency
-
-Tests never place real calls.
-
-## Security
-
-- `.env` is git-ignored.
-- CALL-E credentials never reach JavaScript.
-- Live phone numbers are validated as E.164.
-- Live dispatch requires explicit confirmation.
-- Stable idempotency keys prevent duplicate call creation on retries.
-- No secrets are stored in README or source.
-- Purchasing is never automated.
-
-## Known MVP limitation
-
-Run state is intentionally in memory to keep the hackathon MVP simple. A server restart clears active recovery runs. Persistent storage is not required for the demo and was intentionally not added as unnecessary complexity.
-
-## Final demo story
-
-> “We did not find the cheapest supplier. We found the fastest feasible way to restart production.”
-
-The important moment is the transition from **8 units available** to **12-unit shortfall**, followed by an adaptive call to the next supplier and a deterministic C+D recovery plan.
-
-
-### Supplier phone numbers
-The web UI now allows Supplier A–D phone numbers to be edited directly.
-Use valid E.164 numbers (for example, `+919876543210`) for LIVE CALL-E mode.
-Only enter numbers you are authorized to call. DEMO mode does not place calls.
+Released under the Apache 2.0 License.

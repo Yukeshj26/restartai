@@ -10,14 +10,14 @@
 #>
 param(
     [Parameter(Position=0)]
-    [ValidateSet("install", "run", "test", "clean")]
+    [ValidateSet("install", "run", "test", "golden", "clean")]
     [string]$Command = "run"
 )
 
 switch ($Command) {
     "install" {
         Write-Host "Installing dependencies..." -ForegroundColor Cyan
-        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
     }
     "run" {
         Write-Host "Starting RestartAI at http://127.0.0.1:8000..." -ForegroundColor Green
@@ -26,6 +26,10 @@ switch ($Command) {
     "test" {
         Write-Host "Running pytest test suite..." -ForegroundColor Cyan
         python -m pytest -v
+    }
+    "golden" {
+        Write-Host "Running locked Golden Scenario regression test..." -ForegroundColor Magenta
+        python -m pytest tests/integration/test_golden_scenario.py -v
     }
     "clean" {
         Write-Host "Cleaning cache directories..." -ForegroundColor Yellow
