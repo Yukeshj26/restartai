@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS runs (
     next_supplier_index INTEGER NOT NULL DEFAULT 0,
     approved INTEGER NOT NULL DEFAULT 0,
     call_failures_json TEXT DEFAULT '[]',
+    decisions_json TEXT DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -115,6 +116,11 @@ def _migrate_db(conn: sqlite3.Connection) -> None:
         cursor.execute("ALTER TABLE offers ADD COLUMN extracted_fields_json TEXT DEFAULT '{}'")
     if "retry_count" not in columns:
         cursor.execute("ALTER TABLE offers ADD COLUMN retry_count INTEGER DEFAULT 0")
+
+    cursor.execute("PRAGMA table_info(runs)")
+    run_columns = {row[1] for row in cursor.fetchall()}
+    if "decisions_json" not in run_columns:
+        cursor.execute("ALTER TABLE runs ADD COLUMN decisions_json TEXT DEFAULT '{}'")
 
 
 def init_db(db_path: Path | None = None) -> None:

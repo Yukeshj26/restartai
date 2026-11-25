@@ -116,6 +116,8 @@ class RecoveryPlan(BaseModel):
     required_technician_capability: Optional[str] = None
     installation_required: Optional[bool] = None
     technician_status: str = "not configured"
+    plan_type: str = "best_expected"
+    risk_adjusted: bool = False
 
 
 class FaultEventRequest(BaseModel):

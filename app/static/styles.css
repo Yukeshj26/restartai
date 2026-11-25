@@ -2040,4 +2040,300 @@ button.secondary:hover:not(:disabled) {
   border: 1px solid var(--blue);
 }
 
+/* ========================================================================= */
+/* PHASE 4: DECIDE — TRIAD, SENSITIVITY, CROSS-REFERENCE & SCHEDULING        */
+/* ========================================================================= */
+.decision-triad-panel {
+  border-left: 3px solid var(--orange);
+}
+
+.badge-decision-triad, .badge-crossref {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line-highlight);
+  color: var(--orange);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.triad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+
+@media (max-width: 1024px) {
+  .triad-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.triad-card {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.triad-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-highlight);
+}
+
+.triad-card.active-triad {
+  border-color: var(--green);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12);
+}
+
+.triad-card.fallback-triad {
+  border-color: var(--amber);
+}
+
+.triad-badge {
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px;
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.triad-card.active-triad .triad-badge {
+  color: var(--green);
+  background: rgba(16, 185, 129, 0.08);
+  border-bottom-color: rgba(16, 185, 129, 0.2);
+}
+
+.triad-card.fallback-triad .triad-badge {
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom-color: rgba(245, 158, 11, 0.2);
+}
+
+.triad-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.triad-body h3 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.triad-metrics {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.triad-metrics b {
+  color: var(--text);
+}
+
+.triad-sub {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  margin: 0;
+  flex: 1;
+}
+
+.triad-status-pill {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.triad-status-pill.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
+.triad-status-pill.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border: 1px solid var(--amber);
+}
+
+/* Sensitivity Card */
+.sensitivity-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.callout-icon {
+  font-size: 18px;
+}
+
+.sensitivity-table, .crossref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.sensitivity-table th, .crossref-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-subtle);
+}
+
+.sensitivity-table td, .crossref-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text-dim);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.sensitivity-table tr:hover, .crossref-table tr:hover {
+  background: var(--panel-raised);
+}
+
+.sensitivity-table tr.current-rate-row {
+  background: rgba(249, 115, 22, 0.06);
+  border-left: 2px solid var(--orange);
+}
+
+.sensitivity-table tr.current-rate-row td {
+  color: var(--orange-light);
+  font-weight: 700;
+}
+
+.badge-requires-conf {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Technician Labor & Shift Scheduling */
+.shift-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 800px) {
+  .shift-banner {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shift-meta .lbl {
+  display: block;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-faint);
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+.shift-meta b {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.shift-status-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  border: 1px solid var(--green);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.tech-milestones-list {
+  display: grid;
+  gap: 10px;
+}
+
+.tech-milestone-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 140px;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 16px;
+  transition: border-color 0.12s ease;
+}
+
+.tech-milestone-item:hover {
+  border-color: var(--line-highlight);
+}
+
+.milestone-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.milestone-title-group h4 {
+  font-size: 13px;
+  margin: 0 0 3px 0;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.milestone-title-group p {
+  font-size: 11.5px;
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.milestone-crew {
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 

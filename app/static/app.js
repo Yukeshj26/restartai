@@ -658,6 +658,37 @@ function downloadReport() {
     }
   }
   lines.push("");
+  if (d.fallback_plan && d.fallback_plan.plan) {
+    const fb = d.fallback_plan;
+    lines.push("PRECOMPUTED PLAN B (CONTINGENCY)");
+    lines.push(`- Trigger Condition: ${fb.trigger_condition}`);
+    lines.push(`- Action: ${fb.contingency_action}`);
+    lines.push(`- Contingency Exposure: ₹${fb.plan.total_exposure} (+₹${fb.delta_exposure})`);
+    lines.push(`- Recovery Time: ${fb.plan.recovery_time_hours}h (+${fb.delta_recovery_hours}h)`);
+    lines.push("");
+  }
+  if (d.sensitivity && d.sensitivity.breakeven_explanation) {
+    lines.push("ECONOMIC SENSITIVITY & BREAKEVEN");
+    lines.push(`- Breakeven Delay: ${d.sensitivity.breakeven_delay_minutes} minutes`);
+    lines.push(`- Analysis: ${d.sensitivity.breakeven_explanation}`);
+    lines.push("");
+  }
+  if (d.cross_reference && d.cross_reference.length) {
+    lines.push("PART INTERCHANGE MATRIX (ENGINEERING DIRECTORY)");
+    d.cross_reference.forEach(cr => {
+      lines.push(`- ${cr.brand} ${cr.part_number}: ${Math.round((cr.compatibility_confidence || 0.95) * 100)}% match (${cr.notes || ''}) [REQUIRES CONFIRMATION]`);
+    });
+    lines.push("");
+  }
+  if (d.technician_schedule && d.technician_schedule.shift) {
+    const s = d.technician_schedule.shift;
+    lines.push("MAINTENANCE LABOR & SHIFT ASSIGNMENT");
+    lines.push(`- Active Shift: ${s.name} (${s.hours})`);
+    lines.push(`- Required Competency: ${s.required_capability}`);
+    lines.push(`- Crew: ${(s.assigned_crew || []).map(c => `${c.name} (${c.role})`).join(", ")}`);
+    lines.push("");
+  }
+  lines.push("");
   lines.push("GOVERNANCE & APPROVAL AUDIT");
   lines.push(`- Approved: ${d.approved ? "YES — Operator authorized" : "PENDING — Operator review required"}`);
   lines.push("- Purchasing Principle: Strictly human-in-the-loop. No automated credit card or purchase order was dispatched.");
@@ -772,6 +803,128 @@ function renderAlternatives(plans) {
   `;
 
   el.innerHTML = html;
+}
+
+function renderDecisionTriad(data) {
+  const best = data.best_expected_plan || data.recommended_plan;
+  const safe = data.safe_plan;
+  const fb = data.fallback_plan;
+
+  if (best) {
+    const legsText = (best.legs || []).map(l => `${esc(l.supplier)} (${l.quantity}u)`).join(" + ");
+    if ($("triadBestTitle")) $("triadBestTitle").textContent = legsText;
+    if ($("triadBestTime")) $("triadBestTime").textContent = `${best.recovery_time_hours}h`;
+    if ($("triadBestExposure")) $("triadBestExposure").textContent = money(best.total_exposure);
+  }
+
+  if (safe && $("triadSafeTitle")) {
+    if (safe.feasible && (safe.legs || []).length) {
+      $("triadSafeTitle").textContent = (safe.legs || []).map(l => `${esc(l.supplier)} (${l.quantity}u)`).join(" + ");
+      $("triadSafeTime").textContent = `${safe.recovery_time_hours}h`;
+      $("triadSafeExposure").textContent = money(safe.total_exposure);
+      if ($("triadSafeStatus")) {
+        $("triadSafeStatus").textContent = "Fully Confirmed · Feasible";
+        $("triadSafeStatus").className = "triad-status-pill success";
+      }
+    } else {
+      $("triadSafeTitle").textContent = "Insufficient Confirmed Audited Stock";
+      $("triadSafeTime").textContent = "—";
+      $("triadSafeExposure").textContent = "—";
+      if ($("triadSafeStatus")) {
+        $("triadSafeStatus").textContent = "Safe Plan Infeasible · Missing Tier-1 Stock";
+        $("triadSafeStatus").className = "triad-status-pill warning";
+      }
+    }
+  }
+
+  if (fb && fb.plan && $("triadFallbackTitle")) {
+    const p = fb.plan;
+    const legsText = (p.legs || []).map(l => `${esc(l.supplier)} (${l.quantity}u)`).join(" + ");
+    $("triadFallbackTitle").textContent = legsText;
+    const deltaH = fb.delta_recovery_hours >= 0 ? `+${fb.delta_recovery_hours}h` : `${fb.delta_recovery_hours}h`;
+    const deltaE = fb.delta_exposure >= 0 ? `+${money(fb.delta_exposure)}` : money(fb.delta_exposure);
+    if ($("triadFallbackTime")) $("triadFallbackTime").textContent = `${p.recovery_time_hours}h (${deltaH})`;
+    if ($("triadFallbackExposure")) $("triadFallbackExposure").textContent = `${money(p.total_exposure)} (${deltaE})`;
+    if ($("triadFallbackTrigger")) $("triadFallbackTrigger").textContent = `Contingency trigger: ${fb.trigger_condition}. Action: ${fb.contingency_action}.`;
+  }
+}
+
+function renderSensitivity(sensitivity) {
+  if (!sensitivity) return;
+  const txtEl = $("sensitivityBreakevenText");
+  if (txtEl && sensitivity.breakeven_explanation) {
+    txtEl.textContent = sensitivity.breakeven_explanation;
+  }
+  const rowsEl = $("sensitivityRows");
+  if (!rowsEl) return;
+  const points = sensitivity.points || [];
+  if (!points.length) {
+    rowsEl.innerHTML = '<tr><td colspan="5" class="empty-row">No sensitivity data available.</td></tr>';
+    return;
+  }
+  const curRate = sensitivity.current_downtime_rate;
+  rowsEl.innerHTML = points.map(pt => {
+    const isCur = pt.downtime_rate === curRate;
+    return `
+      <tr class="${isCur ? 'current-rate-row' : ''}">
+        <td><b>₹${pt.downtime_rate.toLocaleString()}/hr</b> ${isCur ? '<span class="match-badge">CURRENT LOSS RATE</span>' : ''}</td>
+        <td>${money(pt.recommended_plan_exposure)}</td>
+        <td>${money(pt.single_source_b_exposure)}</td>
+        <td style="color:${pt.net_savings >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:700;">
+          ${pt.net_savings >= 0 ? '+' : ''}${money(pt.net_savings)}
+        </td>
+        <td>${pt.savings_percent}% lower loss</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderCrossRef(equivalents) {
+  const el = $("crossRefRows");
+  if (!el) return;
+  if (!equivalents || !equivalents.length) {
+    el.innerHTML = '<tr><td colspan="5" class="empty-row">No interchangeable equivalents in registry.</td></tr>';
+    return;
+  }
+  el.innerHTML = equivalents.map(eq => `
+    <tr>
+      <td><b>${esc(eq.brand || '')}</b></td>
+      <td class="mono"><b>${esc(eq.part_number || '')}</b></td>
+      <td><span class="match-badge">${Math.round((eq.compatibility_confidence || 0.95) * 100)}% Match</span></td>
+      <td>${esc(eq.notes || 'Direct form-fit-function match')}</td>
+      <td><span class="badge-requires-conf">REQUIRES CONFIRMATION</span></td>
+    </tr>
+  `).join("");
+}
+
+function renderTechnicianSchedule(sched) {
+  if (!sched) return;
+  const shift = sched.shift || {};
+  if ($("shiftName") && shift.name) $("shiftName").textContent = `${shift.name} (${shift.hours || '06:00 - 14:00 IST'})`;
+  if ($("shiftSkill") && shift.required_capability) $("shiftSkill").textContent = shift.required_capability;
+  if ($("shiftCrew") && shift.assigned_crew) {
+    $("shiftCrew").textContent = shift.assigned_crew.map(c => `${c.name} (${c.role})`).join(" · ");
+  }
+  if ($("shiftStatusPill") && shift.name) {
+    $("shiftStatusPill").textContent = `${shift.shift_id || 'SHIFT A'} ACTIVE (${shift.available_count || 3} CREW)`;
+  }
+  const mList = $("technicianMilestones");
+  if (!mList) return;
+  const milestones = sched.milestones || [];
+  if (!milestones.length) {
+    mList.innerHTML = '<div class="empty-row">No milestone schedule generated.</div>';
+    return;
+  }
+  mList.innerHTML = milestones.map(m => `
+    <div class="tech-milestone-item">
+      <div class="milestone-time">${esc(m.time)}</div>
+      <div class="milestone-title-group">
+        <h4>${esc(m.title)}</h4>
+        <p>${esc(m.description)}</p>
+      </div>
+      <div class="milestone-crew">${esc(m.technicians || 'Assigned Crew')}</div>
+    </div>
+  `).join("");
 }
 
 function render(data) {
@@ -893,6 +1046,10 @@ function render(data) {
       </div>`;
 
     renderAlternatives(data.plans);
+    renderDecisionTriad(data);
+    renderSensitivity(data.sensitivity);
+    renderCrossRef(data.cross_reference);
+    renderTechnicianSchedule(data.technician_schedule);
 
     // Update Module 4 Recap
     $("recapMachine") && ($("recapMachine").textContent = data.request?.machine || "CNC Line 4");

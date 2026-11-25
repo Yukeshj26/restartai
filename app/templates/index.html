@@ -401,6 +401,149 @@
         <!-- Rendered dynamically by render() -->
       </div>
 
+      <!-- Phase 4 Decision Triad: Best Expected Plan vs Safe Plan vs Contingency Fallback Plan B -->
+      <div class="panel decision-triad-panel">
+        <div class="row-head">
+          <div>
+            <h2>Decision Triad & Uncertainty Architecture</h2>
+            <p class="hint">Continuous risk arbitration across deterministic models: Best Expected vs Confirmed Safe vs Contingency Fallback.</p>
+          </div>
+          <span class="badge-decision-triad">3 DETERMINISTIC MODELS</span>
+        </div>
+        <div class="triad-grid">
+          <!-- Card 1: Best Expected -->
+          <div id="triadBestCard" class="triad-card active-triad">
+            <div class="triad-badge">1 · BEST EXPECTED PLAN (RECOMMENDED)</div>
+            <div class="triad-body">
+              <h3 id="triadBestTitle">Supplier C (8) + Supplier D (12)</h3>
+              <div class="triad-metrics">
+                <span>Recovery: <b id="triadBestTime" class="mono">2.0h</b></span>
+                <span>Exposure: <b id="triadBestExposure" class="mono">₹13,720</b></span>
+              </div>
+              <p class="triad-sub">Haircuts applied to any tentative stock. Evaluates split-sourcing to minimize line stoppage.</p>
+              <span class="triad-status-pill success">Optimal Exposure · Feasible</span>
+            </div>
+          </div>
+          <!-- Card 2: Safe Plan -->
+          <div id="triadSafeCard" class="triad-card">
+            <div class="triad-badge">2 · SAFE PLAN (CONFIRMED STOCK ONLY)</div>
+            <div class="triad-body">
+              <h3 id="triadSafeTitle">Supplier C (8) + Supplier D (12)</h3>
+              <div class="triad-metrics">
+                <span>Recovery: <b id="triadSafeTime" class="mono">2.0h</b></span>
+                <span>Exposure: <b id="triadSafeExposure" class="mono">₹13,720</b></span>
+              </div>
+              <p class="triad-sub">Strictly utilizes 100% confirmed stock from audited tier-1 suppliers (reliability ≥ 0.85).</p>
+              <span id="triadSafeStatus" class="triad-status-pill success">Fully Confirmed · Feasible</span>
+            </div>
+          </div>
+          <!-- Card 3: Contingency Fallback Plan B -->
+          <div id="triadFallbackCard" class="triad-card fallback-triad">
+            <div class="triad-badge">3 · PRECOMPUTED PLAN B (CONTINGENCY)</div>
+            <div class="triad-body">
+              <h3 id="triadFallbackTitle">Supplier B (20u Single-Source Courier)</h3>
+              <div class="triad-metrics">
+                <span>Recovery: <b id="triadFallbackTime" class="mono">2.5h (+0.5h)</b></span>
+                <span>Exposure: <b id="triadFallbackExposure" class="mono">₹14,400 (+₹680)</b></span>
+              </div>
+              <p id="triadFallbackTrigger" class="triad-sub">Automated trigger: If Supplier C fails or delays beyond 1.0h, instantly reroute full order to Supplier B.</p>
+              <span class="triad-status-pill warning">Contingency Ready · Standby</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sensitivity & Breakeven Analysis -->
+      <div class="panel sensitivity-panel">
+        <div class="row-head">
+          <div>
+            <h2>Economic Sensitivity & Breakeven Threshold</h2>
+            <p class="hint">Evaluates exposure trade-offs across factory downtime rates and supplier transit slip tolerances.</p>
+          </div>
+          <span class="pill-recommended">BREAKEVEN DELAY: +8.2 MINS</span>
+        </div>
+        <div class="sensitivity-content">
+          <div class="sensitivity-callout">
+            <div class="callout-icon">⏱️</div>
+            <div class="callout-text">
+              <b>Analytical Delay Tolerance:</b>
+              <span id="sensitivityBreakevenText">At ₹5,000/hr downtime loss, Supplier D has an 8.2-minute slip tolerance (ETA 1h 38m). If Supplier D delays beyond that, single-source courier via Supplier B becomes mathematically optimal.</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="sensitivity-table">
+              <thead>
+                <tr>
+                  <th>DOWNTIME LOSS RATE</th>
+                  <th>RECOMMENDED PLAN (C+D)</th>
+                  <th>SINGLE SUPPLIER B</th>
+                  <th>NET SAVINGS</th>
+                  <th>SAVINGS %</th>
+                </tr>
+              </thead>
+              <tbody id="sensitivityRows">
+                <tr><td colspan="5" class="empty-row">Awaiting plan synthesis...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Part Cross-Reference Interchange Matrix -->
+      <div class="panel cross-ref-panel">
+        <div class="row-head">
+          <div>
+            <h2>Part Cross-Reference & Interchange Matrix</h2>
+            <p class="hint">Verified form-fit-function equivalents from the engineering asset registry (flagged for maintenance confirmation).</p>
+          </div>
+          <span class="badge-crossref">ENGINEERING DIRECTORY</span>
+        </div>
+        <div class="table-responsive">
+          <table class="crossref-table">
+            <thead>
+              <tr>
+                <th>EQUIVALENT BRAND</th>
+                <th>INTERCHANGE PART #</th>
+                <th>COMPATIBILITY CONFIDENCE</th>
+                <th>TECHNICAL SPECIFICATION NOTES</th>
+                <th>MAINTENANCE STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="crossRefRows">
+              <tr><td colspan="5" class="empty-row">Loading part cross-reference matrix...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Technician Shift Schedule & Step-by-Step Milestones -->
+      <div class="panel technician-schedule-panel">
+        <div class="row-head">
+          <div>
+            <h2>Maintenance Labor Capacity & Staged Work Instructions</h2>
+            <p class="hint">Shift crew assignment and precision replacement milestones from the maintenance knowledge-base.</p>
+          </div>
+          <span id="shiftStatusPill" class="shift-status-pill">SHIFT A ACTIVE (3 CREW)</span>
+        </div>
+        <div class="shift-banner">
+          <div class="shift-meta">
+            <span class="lbl">ACTIVE SHIFT</span>
+            <b id="shiftName">Shift A · Morning Industrial Ops (06:00 - 14:00 IST)</b>
+          </div>
+          <div class="shift-meta">
+            <span class="lbl">REQUIRED COMPETENCY</span>
+            <b id="shiftSkill">Mechanical Maintenance Technician</b>
+          </div>
+          <div class="shift-meta">
+            <span class="lbl">ASSIGNED PERSONNEL</span>
+            <b id="shiftCrew">R. Sharma (Lead, #MEC-4412) · V. Patel (#MEC-3891)</b>
+          </div>
+        </div>
+        <div id="technicianMilestones" class="tech-milestones-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
       <!-- Execution Timeline (Material Arrival -> Install -> Production Restart) -->
       <div class="panel timeline-panel">
         <h2>Optimal Recovery Timeline</h2>

@@ -2,6 +2,7 @@ from .call_e_service import CalleService, CallEError, CallETimeoutError
 from .llm_service import LlmService, LlmError
 from .storage_service import StorageService
 from .asset_service import AssetService
+from .supplier_registry_service import SupplierRegistryService
 
 __all__ = [
     "CalleService",
@@ -11,4 +12,5 @@ __all__ = [
     "LlmError",
     "StorageService",
     "AssetService",
+    "SupplierRegistryService",
 ]

@@ -37,11 +37,19 @@ class StorageService:
     def save_run(self, state: Dict[str, Any]) -> None:
         run_id = state["run_id"]
         now = self._now()
+        decisions = {
+            "best_expected_plan": state.get("best_expected_plan"),
+            "safe_plan": state.get("safe_plan"),
+            "fallback_plan": state.get("fallback_plan"),
+            "sensitivity": state.get("sensitivity"),
+            "cross_reference": state.get("cross_reference"),
+            "technician_schedule": state.get("technician_schedule"),
+        }
         with get_db(self.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO runs (run_id, stage, mode, request_json, maintenance_json, next_supplier_index, approved, call_failures_json, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO runs (run_id, stage, mode, request_json, maintenance_json, next_supplier_index, approved, call_failures_json, decisions_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     stage = excluded.stage,
                     mode = excluded.mode,
@@ -50,6 +58,7 @@ class StorageService:
                     next_supplier_index = excluded.next_supplier_index,
                     approved = excluded.approved,
                     call_failures_json = excluded.call_failures_json,
+                    decisions_json = excluded.decisions_json,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -61,6 +70,7 @@ class StorageService:
                     int(state.get("next_supplier_index", 0)),
                     1 if state.get("approved") else 0,
                     json.dumps(state.get("call_failures", [])),
+                    json.dumps(decisions),
                     state.get("created_at", now),
                     now
                 )
@@ -165,6 +175,8 @@ class StorageService:
             ).fetchall()
             calls = [json.loads(c["record_json"]) for c in call_rows]
 
+            decisions = json.loads(run_row["decisions_json"]) if "decisions_json" in run_row.keys() and run_row["decisions_json"] else {}
+
             return {
                 "run_id": run_row["run_id"],
                 "stage": run_row["stage"],
@@ -177,6 +189,12 @@ class StorageService:
                 "offers": offers,
                 "plans": plans,
                 "calls": calls,
+                "best_expected_plan": decisions.get("best_expected_plan"),
+                "safe_plan": decisions.get("safe_plan"),
+                "fallback_plan": decisions.get("fallback_plan"),
+                "sensitivity": decisions.get("sensitivity"),
+                "cross_reference": decisions.get("cross_reference"),
+                "technician_schedule": decisions.get("technician_schedule"),
                 "created_at": run_row["created_at"],
                 "updated_at": run_row["updated_at"],
             }

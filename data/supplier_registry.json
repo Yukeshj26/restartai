@@ -1,0 +1,44 @@
+{
+  "suppliers": [
+    {
+      "name": "Supplier A",
+      "default_phone": "+919876543211",
+      "reliability_score": 0.92,
+      "fulfillment_rate": 0.94,
+      "avg_delay_hours": 0.5,
+      "tier": "Preferred OEM Distributor",
+      "location": "Sector 18 Industrial Area",
+      "specialization": "Bulk standard transmission bearings"
+    },
+    {
+      "name": "Supplier B",
+      "default_phone": "+919876543212",
+      "reliability_score": 0.96,
+      "fulfillment_rate": 0.98,
+      "avg_delay_hours": 0.1,
+      "tier": "Emergency Hotshot Courier Partner",
+      "location": "City Central Depot",
+      "specialization": "Express 2-hour courier dispatch"
+    },
+    {
+      "name": "Supplier C",
+      "default_phone": "+919876543213",
+      "reliability_score": 0.93,
+      "fulfillment_rate": 0.91,
+      "avg_delay_hours": 0.2,
+      "tier": "Local Counter Stockist",
+      "location": "Machinery Market, Ring Road",
+      "specialization": "Immediate counter pickup & partial packs"
+    },
+    {
+      "name": "Supplier D",
+      "default_phone": "+919876543214",
+      "reliability_score": 0.95,
+      "fulfillment_rate": 0.96,
+      "avg_delay_hours": 0.2,
+      "tier": "Rapid Dispatch Logistics",
+      "location": "Airport Logistics Park",
+      "specialization": "90-minute motorbike emergency freight"
+    }
+  ]
+}

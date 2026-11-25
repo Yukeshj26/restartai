@@ -185,6 +185,39 @@ def recovery_audit_logs(run_id: str):
     return JSONResponse({"run_id": run_id, "logs": logs})
 
 
+@router.get("/recovery/{run_id}/sensitivity")
+def get_recovery_sensitivity(run_id: str):
+    result = engine.get(run_id)
+    if not result:
+        return JSONResponse({"error": "Recovery run not found."}, status_code=404)
+    return JSONResponse(result.get("sensitivity", {}))
+
+
+@router.get("/suppliers/registry")
+def list_suppliers_registry():
+    return JSONResponse({"suppliers": engine.supplier_registry.list_suppliers()})
+
+
+@router.post("/suppliers/registry/{supplier_name}")
+async def update_supplier_reliability(supplier_name: str, request: Request):
+    try:
+        body = await request.json()
+        score = float(body.get("reliability_score", 0.90))
+    except Exception:
+        return JSONResponse({"error": "Invalid request body. Expected JSON with 'reliability_score'."}, status_code=400)
+
+    updated = engine.supplier_registry.update_supplier_reliability(supplier_name, score)
+    if not updated:
+        return JSONResponse({"error": f"Failed to update supplier '{supplier_name}'."}, status_code=400)
+    return JSONResponse({"success": True, "supplier": updated})
+
+
+@router.get("/parts/cross-reference")
+def get_parts_cross_reference(part_number: str = Query(default="SKF 6205-2RS")):
+    equivalents = engine._get_cross_reference(part_number)
+    return JSONResponse({"part_number": part_number, "equivalents": equivalents})
+
+
 @router.get("/config/llm")
 def llm_config():
     return {"enabled": llm_service.enabled}
