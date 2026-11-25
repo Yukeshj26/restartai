@@ -78,6 +78,15 @@ def index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
 
 
+@app.get("/approver/{run_id}", response_class=HTMLResponse)
+def mobile_approver(run_id: str):
+    from .api.routes import action_service, engine
+    run_state = engine.get(run_id)
+    if not run_state:
+        return HTMLResponse("<h1>Recovery Run Not Found</h1>", status_code=404)
+    return HTMLResponse(action_service.render_mobile_approver_html(run_state))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.app_host, port=settings.app_port, reload=True)

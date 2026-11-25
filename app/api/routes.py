@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from ..models import RecoveryRequest, TestCallRequest, ChatRequest, FaultEventRequest
 from ..engine.recovery_engine import RecoveryEngine
@@ -10,6 +10,7 @@ from ..services.call_e_service import CalleService, CallEError
 from ..services.llm_service import LlmService, LlmError
 from ..services.storage_service import StorageService
 from ..services.asset_service import AssetService
+from ..services.action_service import ActionService
 
 router = APIRouter(prefix="/api")
 
@@ -18,6 +19,7 @@ engine = RecoveryEngine(calle_service)
 llm_service = LlmService()
 storage_service = StorageService()
 asset_service = AssetService()
+action_service = ActionService()
 
 
 @router.get("/health")
@@ -216,6 +218,33 @@ async def update_supplier_reliability(supplier_name: str, request: Request):
 def get_parts_cross_reference(part_number: str = Query(default="SKF 6205-2RS")):
     equivalents = engine._get_cross_reference(part_number)
     return JSONResponse({"part_number": part_number, "equivalents": equivalents})
+
+
+@router.get("/recovery/{run_id}/actions")
+def get_recovery_actions(run_id: str):
+    result = engine.get(run_id)
+    if not result:
+        return JSONResponse({"error": "Recovery run not found."}, status_code=404)
+    package = action_service.generate_action_package(result)
+    return JSONResponse(package.model_dump())
+
+
+@router.get("/recovery/{run_id}/report.html")
+def get_recovery_report_html(run_id: str):
+    result = engine.get(run_id)
+    if not result:
+        return HTMLResponse("<h1>Recovery Run Not Found</h1>", status_code=404)
+    logs = storage_service.get_audit_logs(run_id)
+    html_content = action_service.render_dossier_html(result, logs)
+    return HTMLResponse(content=html_content)
+
+
+@router.get("/approver/{run_id}")
+def get_mobile_approver_api(run_id: str):
+    result = engine.get(run_id)
+    if not result:
+        return HTMLResponse("<h1>Recovery Run Not Found</h1>", status_code=404)
+    return HTMLResponse(content=action_service.render_mobile_approver_html(result))
 
 
 @router.get("/config/llm")

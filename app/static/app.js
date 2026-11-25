@@ -598,6 +598,7 @@ async function approve() {
     if (approveBtn) approveBtn.disabled = true;
 
     logActivity("plan_approved by=human_operator purchase=not_automated status=authorized");
+    loadActionPackage(runId);
   } catch (e) {
     showError(e.message);
   }
@@ -610,6 +611,99 @@ function rejectPlan() {
   if (notice) {
     notice.innerHTML = "<b class=\"bad\">✕ Plan Rejected.</b> Switched to manual supplier dispatch. Audit logged.";
   }
+}
+
+let currentActionPackage = null;
+
+async function loadActionPackage(targetRunId) {
+  if (!targetRunId) return;
+  try {
+    const r = await fetch(`/api/recovery/${targetRunId}/actions`);
+    if (!r.ok) return;
+    const pkg = await readJsonResponse(r);
+    currentActionPackage = pkg;
+    renderActionPackageUI(pkg, targetRunId);
+  } catch (e) {
+    console.warn("Failed to load action package:", e);
+  }
+}
+
+function renderActionPackageUI(pkg, targetRunId) {
+  if (!pkg) return;
+  const mobLink = $("mobileApproverLink");
+  if (mobLink) mobLink.href = `/approver/${targetRunId}`;
+  const printLink = $("printDossierLink");
+  if (printLink) printLink.href = `/api/recovery/${targetRunId}/report.html`;
+
+  // Render POs
+  const poContainer = $("poDraftsContainer");
+  if (poContainer) {
+    const pos = pkg.purchase_orders || [];
+    if (!pos.length) {
+      poContainer.innerHTML = '<div class="loading-placeholder">No purchase orders required.</div>';
+    } else {
+      poContainer.innerHTML = pos.map(po => `
+        <div class="po-card">
+          <b>${esc(po.po_number)}</b> · <span style="color:#fff;">${esc(po.supplier_name)}</span><br>
+          <span>${po.quantity} units @ ${money(po.unit_price)} = <b>${money(po.subtotal)}</b></span><br>
+          <span class="sub">${esc(po.delivery_method)} · Status: ${esc(po.status)}</span>
+        </div>
+      `).join("");
+    }
+  }
+
+  // Render Tech Dispatch
+  if ($("techDispatchText")) {
+    $("techDispatchText").textContent = pkg.technician_dispatch_message || "Awaiting plan authorization...";
+  }
+
+  // Render Stakeholder Note
+  if ($("stakeholderNoteText")) {
+    $("stakeholderNoteText").textContent = pkg.stakeholder_status_note || "Awaiting plan authorization...";
+  }
+
+  // Render CMMS Ticket
+  if ($("cmmsTicketText")) {
+    $("cmmsTicketText").textContent = JSON.stringify(pkg.cmms_ticket || {}, null, 2);
+  }
+}
+
+function copyActionArtifact(type) {
+  let textToCopy = "";
+  if (!currentActionPackage) return;
+  if (type === "poDrafts") {
+    textToCopy = (currentActionPackage.purchase_orders || []).map(po =>
+      `[${po.po_number}] VENDOR: ${po.supplier_name} | ITEM: ${po.part_number} | QTY: ${po.quantity} | UNIT: ₹${po.unit_price} | TOTAL: ₹${po.subtotal} | STATUS: ${po.status}`
+    ).join("\n");
+  } else if (type === "techDispatch") {
+    textToCopy = currentActionPackage.technician_dispatch_message || "";
+  } else if (type === "stakeholderNote") {
+    textToCopy = currentActionPackage.stakeholder_status_note || "";
+  }
+  if (!textToCopy) return;
+  navigator.clipboard.writeText(textToCopy).then(() => {
+    logActivity(`action_artifact_copied type=${type}`);
+    showError("✓ Copied to clipboard!");
+  }).catch(() => {
+    showError("Could not copy automatically. Select text to copy.");
+  });
+}
+
+function downloadCmmsJson() {
+  if (!currentActionPackage || !currentActionPackage.cmms_ticket) {
+    showError("Action package not ready yet.");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(currentActionPackage.cmms_ticket, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `cmms-ticket-${currentActionPackage.run_id}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  logActivity("cmms_ticket_json_downloaded");
 }
 
 function downloadReport() {
@@ -1057,6 +1151,7 @@ function render(data) {
     $("recapLegs") && ($("recapLegs").textContent = (p.legs || []).map(l => `${l.supplier} (${l.quantity})`).join(" + "));
     $("recapPurchase") && ($("recapPurchase").textContent = money(p.total_purchase_cost));
     $("recapExposure") && ($("recapExposure").textContent = money(p.total_exposure));
+    if (runId) loadActionPackage(runId);
 
     // Update approval buttons
     const appBtn = $("approveBtn");

@@ -719,6 +719,70 @@
       </div>
     </div>
 
+    <!-- PHASE 5: HUMAN-GATED ACTION PACKAGE ARTIFACTS -->
+    <div id="actionPackagePanel" class="panel action-package-panel">
+      <div class="row-head">
+        <div>
+          <div class="eyebrow" style="color:var(--orange);">MODULE 05 · HUMAN-GATED ACTION PACKAGE</div>
+          <h2>Operational Dispatch Artifacts (Drafts Prepared)</h2>
+          <p class="hint">Complete follow-up packages generated upon authorization. Dispatched only with explicit manual trigger.</p>
+        </div>
+        <div class="action-top-links">
+          <a id="mobileApproverLink" href="#" target="_blank" class="action-pill-link">
+            📱 Mobile Approver View
+          </a>
+          <a id="printDossierLink" href="#" target="_blank" class="action-pill-link highlight">
+            🖨️ Print / Save PDF Dossier
+          </a>
+        </div>
+      </div>
+
+      <!-- Action Tabs / Sections -->
+      <div class="action-grid">
+        <!-- 1. PO Drafts -->
+        <div class="action-card">
+          <div class="action-card-head">
+            <span class="action-card-tag">1 · PURCHASE ORDERS</span>
+            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('poDrafts')">📋 Copy POs</button>
+          </div>
+          <h4>Vendor Purchase Order Drafts</h4>
+          <div id="poDraftsContainer" class="po-drafts-list">
+            <div class="loading-placeholder">Sign off on plan to generate purchase order drafts.</div>
+          </div>
+        </div>
+
+        <!-- 2. Technician Dispatch Message -->
+        <div class="action-card">
+          <div class="action-card-head">
+            <span class="action-card-tag">2 · WORKFORCE DISPATCH</span>
+            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('techDispatch')">📋 Copy SMS</button>
+          </div>
+          <h4>Maintenance Crew SMS / Alert</h4>
+          <pre id="techDispatchText" class="action-pre">Awaiting plan authorization...</pre>
+        </div>
+
+        <!-- 3. Stakeholder Status Update -->
+        <div class="action-card">
+          <div class="action-card-head">
+            <span class="action-card-tag">3 · EXECUTIVE BRIEF</span>
+            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('stakeholderNote')">📋 Copy Brief</button>
+          </div>
+          <h4>Plant Leadership Incident Update</h4>
+          <pre id="stakeholderNoteText" class="action-pre">Awaiting plan authorization...</pre>
+        </div>
+
+        <!-- 4. CMMS Work Order Payload -->
+        <div class="action-card">
+          <div class="action-card-head">
+            <span class="action-card-tag">4 · CMMS INTEGRATION</span>
+            <button type="button" class="btn-copy-small" onclick="downloadCmmsJson()">📥 Download JSON</button>
+          </div>
+          <h4>SAP PM / IBM Maximo Ticket JSON</h4>
+          <pre id="cmmsTicketText" class="action-pre">Awaiting plan authorization...</pre>
+        </div>
+      </div>
+    </div>
+
     <!-- Vertical Activity Audit Timeline -->
     <div class="panel audit-panel">
       <div class="row-head">

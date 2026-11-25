@@ -3,6 +3,7 @@ from .llm_service import LlmService, LlmError
 from .storage_service import StorageService
 from .asset_service import AssetService
 from .supplier_registry_service import SupplierRegistryService
+from .action_service import ActionService
 
 __all__ = [
     "CalleService",
@@ -13,4 +14,5 @@ __all__ = [
     "StorageService",
     "AssetService",
     "SupplierRegistryService",
+    "ActionService",
 ]

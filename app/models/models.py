@@ -134,3 +134,34 @@ class FaultEventRequest(BaseModel):
     downtime_cost_per_hour: Optional[float] = None
     available_technicians: Optional[int] = None
 
+
+class PurchaseOrderDraft(BaseModel):
+    po_number: str
+    supplier_name: str
+    supplier_phone: str
+    part_number: str
+    part_description: str
+    quantity: int
+    unit_price: float
+    subtotal: float
+    currency: str = "INR"
+    delivery_method: str
+    delivery_address: str = "Gate 2 Receiving Depot, Sector 18 Manufacturing Plant"
+    payment_terms: str = "Net 30 · Emergency Maintenance PO"
+    status: str = "DRAFT - PENDING MANUAL DISPATCH"
+    is_dispatched: bool = False
+    dispatched_at: Optional[str] = None
+
+
+class ActionPackage(BaseModel):
+    run_id: str
+    generated_at: str
+    is_approved: bool
+    purchase_orders: List[PurchaseOrderDraft] = Field(default_factory=list)
+    technician_dispatch_message: str = ""
+    stakeholder_status_note: str = ""
+    cmms_ticket: Dict[str, Any] = Field(default_factory=dict)
+    dispatch_policy: str = "HUMAN_APPROVAL_MANDATORY"
+    dispatch_enabled: bool = False
+
+
