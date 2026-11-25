@@ -68,8 +68,8 @@ def load_settings() -> Settings:
         poll_timeout_seconds=max(
             1, int(float(_val("CALLE_POLL_TIMEOUT_SECONDS", "300")))
         ),
-        app_host=_val("APP_HOST", "127.0.0.1"),
-        app_port=int(_val("APP_PORT", "8000")),
+        app_host=_val("APP_HOST", "0.0.0.0"),
+        app_port=int(_val("APP_PORT", _val("PORT", "8000"))),
         log_level=_val("LOG_LEVEL", "INFO"),
         db_path=db_file,
         database_url=database_url,
@@ -77,7 +77,7 @@ def load_settings() -> Settings:
         gemini_api_key=_val("GEMINI_API_KEY"),
         gemini_model=_val("GEMINI_MODEL", "gemini-2.5-flash"),
         groq_api_key=_val("GROQ_API_KEY"),
-        groq_model=_val("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        groq_model=_val("GROQ_MODEL", "openai/gpt-oss-120b"),
         anthropic_api_key=_val("ANTHROPIC_API_KEY"),
         anthropic_model=_val("ANTHROPIC_MODEL", "claude-sonnet-5"),
         grok_api_key=_val("GROK_API_KEY"),
