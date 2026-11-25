@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RestartAI — Emergency Production Recovery Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20261125-multi-module">
+</head>
+<body>
+
+<!-- Persistent Top Bar -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="brand" onclick="navigate('#/incident')">
+      <span class="brand-dot"></span>
+      RESTART<span class="brand-accent">AI</span>
+      <span class="brand-sub">RECOVERY AGENT</span>
+    </div>
+  </div>
+
+  <!-- 4-Module Stepper -->
+  <nav class="stepper" aria-label="Incident Recovery Stages">
+    <button class="step active" id="step-btn-1" onclick="navigate('#/incident')">
+      <span class="step-num">01</span>
+      <span class="step-content">
+        <span class="step-tag">SETUP</span>
+        <span class="step-title">Incident</span>
+      </span>
+    </button>
+    <div class="step-divider"></div>
+    <button class="step locked" id="step-btn-2" onclick="navigate('#/calls')">
+      <span class="step-num">02</span>
+      <span class="step-content">
+        <span class="step-tag">FEED</span>
+        <span class="step-title">Supplier Calls</span>
+      </span>
+    </button>
+    <div class="step-divider"></div>
+    <button class="step locked" id="step-btn-3" onclick="navigate('#/plan')">
+      <span class="step-num">03</span>
+      <span class="step-content">
+        <span class="step-tag">ENGINE</span>
+        <span class="step-title">Recovery Plan</span>
+      </span>
+    </button>
+    <div class="step-divider"></div>
+    <button class="step locked" id="step-btn-4" onclick="navigate('#/approval')">
+      <span class="step-num">04</span>
+      <span class="step-content">
+        <span class="step-tag">DECISION</span>
+        <span class="step-title">Approval & Report</span>
+      </span>
+    </button>
+  </nav>
+
+  <div class="header-right">
+    <div id="clock" class="clock">00:00:00</div>
+    <div id="modePill" class="pill">MODE · DEMO</div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- Persistent Incident Summary Bar (Visible when run active) -->
+  <section id="incidentHeader" class="incident-header hidden">
+    <div class="incident-field">
+      <small>MACHINE</small>
+      <b id="incMachine">—</b>
+    </div>
+    <div class="incident-field">
+      <small>FAILED PART</small>
+      <b id="incPart">—</b>
+    </div>
+    <div class="incident-field">
+      <small>QUANTITY NEEDED</small>
+      <b id="incQty">—</b>
+    </div>
+    <div class="incident-field">
+      <small>MAX DEADLINE</small>
+      <b id="incDeadline">—</b>
+    </div>
+    <div class="incident-field cost">
+      <small>ACCRUED DOWNTIME COST</small>
+      <b id="incCost">₹0</b>
+    </div>
+  </section>
+
+  <!-- Global Notification / Error -->
+  <div id="error" class="error hidden" role="alert"></div>
+
+  <!-- ========================================================================= -->
+  <!-- MODULE 1: INCIDENT SETUP (#/incident)                                     -->
+  <!-- ========================================================================= -->
+  <section id="module-incident" class="module-view active">
+    
+    <div class="module-hero">
+      <div class="eyebrow">EMERGENCY PRODUCTION RECOVERY · 3-MINUTE RESPONSE</div>
+      <h1>When the production line stops,<br>the recovery agent starts dialing.</h1>
+      <p class="sub">RestartAI autonomously interrogates suppliers, identifies partial stock shortfalls, matches technician capacity, and builds the lowest economic exposure plan before human sign-off.</p>
+    </div>
+
+    <!-- Mode Selector & Live Warning -->
+    <div class="panel mode-panel">
+      <div class="row-head">
+        <div>
+          <h2>00 · Operational Call Mode</h2>
+          <p class="hint">DEMO executes simulated deterministic calls offline. LIVE CALL-E initiates actual phone calls to authorized numbers.</p>
+        </div>
+        <select id="mode" class="mode-select" onchange="updateModeUI()">
+          <option value="demo" selected>DEMO (Simulated Supplier Responses)</option>
+          <option value="live">LIVE CALL-E (Real Telephony)</option>
+        </select>
+      </div>
+
+      <div id="liveBox" class="live-box hidden">
+        <div class="live-warning-head">
+          <span class="warning-icon">⚠️</span>
+          <b>LIVE TELEPHONY MODE ACTIVE</b>
+        </div>
+        <p>This action will initiate automated phone calls to the numbers configured below. Use valid E.164 numbers and only numbers you are authorized to contact.</p>
+        <label class="checkline">
+          <input type="checkbox" id="liveConfirm">
+          <span>I understand and explicitly authorize live outbound supplier calls.</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Main Incident Form -->
+    <div class="panel incident-form-panel">
+      <div class="panel-head-with-action">
+        <div>
+          <h2>01 · Production Incident & Knowledge-Base Parameters</h2>
+          <p class="hint">Define machine stoppage, required component, downtime loss rate, and factory constraints.</p>
+        </div>
+        <button type="button" class="btn-demo-scenario" onclick="loadDemoScenario()">
+          <span class="btn-icon">⚡</span> Load Demo Scenario (CNC Line 4)
+        </button>
+      </div>
+
+      <div class="fields">
+        <div class="form-group">
+          <label for="machine">Machine Identifier</label>
+          <input id="machine" value="CNC Production Line 4" placeholder="e.g. CNC Production Line 4" required>
+        </div>
+        <div class="form-group">
+          <label for="part">Part Number</label>
+          <input id="part" value="SKF 6205-2RS" placeholder="e.g. SKF 6205-2RS" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+        </div>
+        <div class="form-group span-2">
+          <label for="desc">Component Description</label>
+          <input id="desc" value="Deep-groove ball bearing" placeholder="e.g. Deep-groove ball bearing" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+        </div>
+        <div class="form-group">
+          <label for="qty">Quantity Needed (units)</label>
+          <input id="qty" type="number" value="20" min="1" max="1000" required>
+        </div>
+        <div class="form-group">
+          <label for="maxHours">Maximum Recovery Deadline (hours)</label>
+          <input id="maxHours" type="number" step="0.5" value="3" min="0.5" max="72" required>
+        </div>
+        <div class="form-group">
+          <label for="downtime">Downtime Loss Rate (₹ / hour)</label>
+          <input id="downtime" type="number" value="5000" min="0" step="100" required>
+        </div>
+        <div class="form-group">
+          <label for="techs">Available In-House Technicians</label>
+          <input id="techs" type="number" value="3" min="0" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+          <span id="techHint" class="field-hint">—</span>
+        </div>
+        <div class="form-group">
+          <label for="techOverride">Required Technicians Override</label>
+          <input id="techOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
+        </div>
+        <div class="form-group">
+          <label for="installOverride">Installation Time Override (minutes)</label>
+          <input id="installOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
+        </div>
+        <div class="form-group span-2">
+          <label for="compat">Specification & Compatibility Criteria</label>
+          <textarea id="compat" placeholder="Dimensional and tolerance constraints...">6205-2RS, 25mm bore, 52mm OD, 15mm width. Equivalent brands require confirmation.</textarea>
+        </div>
+      </div>
+
+      <!-- Collapsible Live Settings -->
+      <details class="live-settings-accordion">
+        <summary class="live-settings-summary">
+          <span>Configured Supplier Phone Numbers (LIVE mode only)</span>
+          <span class="summary-hint">DEMO mode uses pre-loaded supplier responses</span>
+        </summary>
+        <div class="supplier-inputs">
+          <label><span>Supplier A</span><input class="phone" id="phone1" type="tel" placeholder="+919876543211"></label>
+          <label><span>Supplier B</span><input class="phone" id="phone2" type="tel" placeholder="+919876543212"></label>
+          <label><span>Supplier C</span><input class="phone" id="phone3" type="tel" placeholder="+919876543213"></label>
+          <label><span>Supplier D</span><input class="phone" id="phone4" type="tel" placeholder="+919876543214"></label>
+          <div class="live-test-panel">
+            <div class="call-status">Calls are initiated only when clicking <b>Start Recovery Agent</b>.</div>
+          </div>
+        </div>
+      </details>
+
+      <div class="form-actions">
+        <button id="startBtn" class="btn-primary-large" onclick="startRecovery()">
+          <span class="btn-icon">▶</span> Start Recovery Agent
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- MODULE 2: SUPPLIER CALLS & ADAPTIVE SHORTFALL (#/calls)                   -->
+  <!-- ========================================================================= -->
+  <section id="module-calls" class="module-view hidden">
+    
+    <div class="module-header-row">
+      <div>
+        <div class="eyebrow">MODULE 02 · REAL-TIME MULTI-SUPPLIER FEED</div>
+        <h2>Supplier Communication & Inventory Discovery</h2>
+      </div>
+      <div class="feed-status-cluster">
+        <span id="demoModeWatermark" class="demo-watermark-pill">SIMULATED SUPPLIER RESPONSES</span>
+        <span id="stage" class="stage-badge">WAITING</span>
+      </div>
+    </div>
+
+    <!-- Inventory Secured Progress Bar -->
+    <div class="panel progress-panel">
+      <div class="progress-header">
+        <div class="progress-title-group">
+          <b>Recovery Quota Progress</b>
+          <span id="quotaText" class="quota-text">0 / 20 units secured (0%)</span>
+        </div>
+        <div id="quotaStatusText" class="quota-status-badge">Searching suppliers...</div>
+      </div>
+      <div class="progress-track">
+        <div id="quotaProgressBar" class="progress-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <!-- THE SHORTFALL MOMENT (The Demo Highlight) -->
+    <div id="shortfallBanner" class="shortfall-moment-card hidden">
+      <div class="shortfall-pulse-dot"></div>
+      <div class="shortfall-content">
+        <div class="shortfall-eyebrow">ADAPTIVE RECOVERY TRIGGERED · SHORTFALL DETECTED</div>
+        <h3 id="shortfallTitle">Supplier C has 8 of 20 units (pickup in 30m). Shortfall: 12 units.</h3>
+        <p id="shortfallDesc">Rather than discarding Supplier C or overpaying a slow single supplier, RestartAI is dispatching an adaptive call to Supplier D to secure the remaining 12 units.</p>
+      </div>
+      <div class="shortfall-action">
+        <div id="shortfallSpinner" class="spinner"></div>
+        <span id="shortfallActionLabel">Dialing Supplier D...</span>
+      </div>
+    </div>
+
+    <!-- Supplier Response Feed Cards / Table -->
+    <div class="panel supplier-feed-panel">
+      <div class="row-head">
+        <h2>Live Supplier Offers</h2>
+        <span class="hint">Compatibility score verified against physical dimensions</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="offer-table">
+          <thead>
+            <tr>
+              <th>SUPPLIER</th>
+              <th>STATUS</th>
+              <th>SPEC MATCH</th>
+              <th>AVAILABLE</th>
+              <th>UNIT PRICE</th>
+              <th>ARRIVAL ETA</th>
+              <th>LOGISTICS</th>
+            </tr>
+          </thead>
+          <tbody id="offerRows">
+            <tr class="empty-row"><td colspan="7">Awaiting supplier responses...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div id="offerNotes" class="offer-notes"></div>
+    </div>
+
+    <!-- Adaptive Replanning Panel (Kept for compatibility & manual control) -->
+    <section id="replanPanel" class="panel replan-section hidden">
+      <div class="row-head">
+        <div>
+          <h2>Adaptive Shortfall Optimization</h2>
+          <p class="hint">The agent calls additional configured suppliers only when a verified compatible shortage exists.</p>
+        </div>
+        <button class="secondary" onclick="replan()">Replan / Call Next Supplier</button>
+      </div>
+      <div id="replanMessage" class="replan-box"></div>
+    </section>
+
+    <!-- Module 2 Footer -->
+    <div class="module-nav-footer">
+      <button class="secondary" onclick="navigate('#/incident')">← Back to Incident Setup</button>
+      <button id="continueToPlanBtn" class="btn-primary" onclick="navigate('#/plan')" disabled>
+        Continue to Recovery Plan →
+      </button>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- MODULE 3: RECOVERY PLAN & ALTERNATIVES (#/plan)                           -->
+  <!-- ========================================================================= -->
+  <section id="module-plan" class="module-view hidden">
+    
+    <div class="module-header-row">
+      <div>
+        <div class="eyebrow">MODULE 03 · DETERMINISTIC OPTIMIZATION ENGINE</div>
+        <h2>Synthesized Production Recovery Plan</h2>
+      </div>
+      <span class="pill-recommended">MINIMUM TOTAL ECONOMIC EXPOSURE</span>
+    </div>
+
+    <!-- Recovery Plan Content (Wrapped in planPanel) -->
+    <div id="planPanel" class="plan-wrapper">
+      
+      <!-- KPI Hero Cards Container -->
+      <div id="plan" class="plan-container">
+        <!-- Rendered dynamically by render() -->
+      </div>
+
+      <!-- Execution Timeline (Material Arrival -> Install -> Production Restart) -->
+      <div class="panel timeline-panel">
+        <h2>Optimal Recovery Timeline</h2>
+        <div class="recovery-timeline">
+          <div class="timeline-step">
+            <div class="timeline-dot warning"></div>
+            <div class="timeline-time">T+0.0h</div>
+            <div class="timeline-title">Line Down</div>
+            <div class="timeline-desc">Bearing failure detected on CNC Line 4</div>
+          </div>
+          <div class="timeline-step">
+            <div class="timeline-dot info"></div>
+            <div class="timeline-time">T+0.5h</div>
+            <div class="timeline-title">Supplier C Ready</div>
+            <div class="timeline-desc">8 units ready for immediate courier pickup</div>
+          </div>
+          <div class="timeline-step">
+            <div class="timeline-dot info"></div>
+            <div class="timeline-time">T+1.5h</div>
+            <div class="timeline-title">Supplier D Arrives</div>
+            <div class="timeline-desc">Remaining 12 units delivered. Full quota (20) on site</div>
+          </div>
+          <div class="timeline-step">
+            <div class="timeline-dot success"></div>
+            <div class="timeline-time">T+2.0h</div>
+            <div class="timeline-title">Line Restarts</div>
+            <div class="timeline-desc">2 technicians complete 30-min install. Production resumes!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison of Alternatives Considered -->
+      <div class="panel alternatives-panel">
+        <div class="row-head">
+          <div>
+            <h2>Alternative Options Evaluated by Python Engine</h2>
+            <p class="hint">Full transparency into what options were ruled out and the exact cost/time trade-off.</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="alt-table">
+            <thead>
+              <tr>
+                <th>RANK</th>
+                <th>SUPPLIER COMBINATION</th>
+                <th>ARRIVAL & INSTALL</th>
+                <th>PURCHASE</th>
+                <th>TOTAL EXPOSURE</th>
+                <th>STATUS & EVALUATION</th>
+              </tr>
+            </thead>
+            <tbody id="altPlans">
+              <tr class="empty-row"><td colspan="6">No alternative combinations calculated yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AI Plain-English Explanation (Optional LLM layer) -->
+      <div class="panel ai-recommendation-panel">
+        <div class="row-head">
+          <div>
+            <h2>AI Plain-English Justification</h2>
+            <p class="hint">Language-only layer explains the deterministic mathematical choice to factory leadership.</p>
+          </div>
+          <button id="aiRecBtn" class="btn-ai-explain" onclick="getAiRecommendation()">
+            <span class="btn-icon">✨</span> Explain Recommendation
+          </button>
+        </div>
+        <div id="aiRecommendation" class="ai-recommendation-box hidden"></div>
+      </div>
+
+      <!-- Hidden approval row preserved for compatibility; primary approval is in Module 4 -->
+      <div class="approval-row hidden">
+        <div id="approval" class="approval">No purchase initiated — approval is required.</div>
+        <div class="approval-actions">
+          <button id="approveBtn" onclick="approve()">Approve recovery plan</button>
+          <button id="downloadBtn" class="secondary" onclick="downloadReport()">Download report</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Module 3 Footer -->
+    <div class="module-nav-footer">
+      <button class="secondary" onclick="navigate('#/calls')">← Back to Supplier Calls</button>
+      <button id="continueToApprovalBtn" class="btn-primary" onclick="navigate('#/approval')">
+        Continue to Human Approval & Audit →
+      </button>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- MODULE 4: HUMAN APPROVAL & AUDIT REPORT (#/approval)                      -->
+  <!-- ========================================================================= -->
+  <section id="module-approval" class="module-view hidden">
+    
+    <div class="module-header-row">
+      <div>
+        <div class="eyebrow">MODULE 04 · GOVERNANCE & AUDIT TRAIL</div>
+        <h2>Human-in-the-Loop Approval & Incident Dossier</h2>
+      </div>
+      <span id="approvalBadge" class="stage-badge">AWAITING OPERATOR APPROVAL</span>
+    </div>
+
+    <!-- Plan Recap Card -->
+    <div class="panel recap-panel">
+      <div class="recap-grid">
+        <div class="recap-item">
+          <small>INCIDENT TARGET</small>
+          <b id="recapMachine">CNC Production Line 4</b>
+          <span id="recapPart" class="recap-sub">SKF 6205-2RS · 20 units</span>
+        </div>
+        <div class="recap-item">
+          <small>RECOMMENDED RECOVERY</small>
+          <b id="recapLegs">Supplier C (8) + Supplier D (12)</b>
+          <span class="recap-sub">Split recovery · 2.0h total downtime</span>
+        </div>
+        <div class="recap-item">
+          <small>NET PURCHASE OUTLAY</small>
+          <b id="recapPurchase">₹3,720</b>
+          <span class="recap-sub">₹180/u (C) + ₹190/u (D)</span>
+        </div>
+        <div class="recap-item highlight">
+          <small>TOTAL ECONOMIC EXPOSURE</small>
+          <b id="recapExposure">₹13,720</b>
+          <span class="recap-sub">Includes ₹10,000 downtime cost</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Pillars of Trust Strip -->
+    <div class="trust-strip">
+      <div class="trust-card">
+        <div class="trust-icon">⚙️</div>
+        <b>Deterministic Python</b>
+        <p>Every arrival timeline, labor feasibility calculation, and ranking is strictly deterministic.</p>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">🧠</div>
+        <b>AI Language Only</b>
+        <p>The LLM provides natural language justification only. It cannot alter numbers or rankings.</p>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">🛡️</div>
+        <b>Human Approves Everything</b>
+        <p>No procurement or PO is ever dispatched automatically. Human operator sign-off is mandatory.</p>
+      </div>
+    </div>
+
+    <!-- Approval Action Card -->
+    <div class="panel approval-decision-panel">
+      <div class="decision-head">
+        <div>
+          <h2>Operator Authorization</h2>
+          <p class="hint">Signing off authorises the dispatch of courier pickup and delivery legs.</p>
+        </div>
+        <div id="approvalStatusDisplay" class="approval-status-pill">PENDING SIGN-OFF</div>
+      </div>
+
+      <div id="approvalActionBox" class="approval-action-box">
+        <div id="approvalNotice" class="approval-notice">
+          ⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.
+        </div>
+        <div class="approval-btn-group">
+          <button id="mod4ApproveBtn" class="btn-approve" onclick="approve()">
+            ✓ Authorize & Approve Recovery Plan
+          </button>
+          <button class="btn-reject" onclick="rejectPlan()">
+            ✕ Reject / Manual Sourcing
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vertical Activity Audit Timeline -->
+    <div class="panel audit-panel">
+      <div class="row-head">
+        <div>
+          <h2>Incident Audit Trail (Chronological)</h2>
+          <p class="hint">Complete immutable timestamped history of all agent decisions and operator interactions.</p>
+        </div>
+        <div class="audit-actions">
+          <button id="mod4DownloadBtn" class="secondary" onclick="downloadReport()">
+            📥 Download Recovery Dossier (.txt)
+          </button>
+          <button class="secondary btn-reset" onclick="resetDemo()">
+            ↺ Reset Demo Scenario
+          </button>
+        </div>
+      </div>
+      <div id="activityList" class="console-log">
+        <div class="log-empty">// awaiting incident input</div>
+      </div>
+    </div>
+
+    <!-- Module 4 Footer -->
+    <div class="module-nav-footer">
+      <button class="secondary" onclick="navigate('#/plan')">← Back to Recovery Plan</button>
+      <button class="btn-primary" onclick="resetDemo()">Start New Incident Setup ↺</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- Floating Chat Assistant Widget (Available Across All Modules) -->
+<div id="chatWidget" class="chat-widget collapsed">
+  <button id="chatToggle" class="chat-toggle" onclick="toggleChat()">
+    <span class="chat-toggle-icon">💬</span>
+    <span class="chat-toggle-label">Ask Agent About This Run</span>
+  </button>
+  <div class="chat-panel">
+    <div class="chat-panel-head">
+      <div class="chat-head-title">
+        <span class="chat-indicator"></span>
+        <b>Recovery Run Assistant</b>
+      </div>
+      <button class="chat-close" onclick="toggleChat()" aria-label="Close chat">×</button>
+    </div>
+    <div id="chatMessages" class="chat-messages">
+      <div class="chat-msg assistant">Ask me anything about this recovery run — suppliers, offers, the recommended plan, or costs.</div>
+    </div>
+    <form id="chatForm" class="chat-input-row" onsubmit="return submitChat(event)">
+      <input id="chatInput" type="text" placeholder="e.g. Why wasn't Supplier B selected?" autocomplete="off">
+      <button type="submit" id="chatSendBtn">Send</button>
+    </form>
+  </div>
+</div>
+
+<script src="/static/app.js?v=20261125-multi-module"></script>
+</body>
+</html>
