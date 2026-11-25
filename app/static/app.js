@@ -29,19 +29,31 @@ function safeText(value) {
   return value === undefined || value === null || value === "" ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-function showError(msg) {
+let errorToastTimer = null;
+
+function showError(msg, tip = "") {
   const el = $("error");
   if (!el) return;
-  el.textContent = msg;
+  clearTimeout(errorToastTimer);
+  const msgEl = $("errorMessage");
+  if (msgEl) {
+    msgEl.textContent = msg;
+  } else {
+    el.textContent = msg;
+  }
+  const tipEl = $("errorTip");
+  if (tipEl) {
+    tipEl.textContent = tip || (msg.includes("LIVE") ? "Tip: Use DEMO mode for offline presentation without live phone keys." : "");
+  }
   el.classList.remove("hidden");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  errorToastTimer = setTimeout(clearError, 8000);
 }
 
 function clearError() {
+  clearTimeout(errorToastTimer);
   const el = $("error");
   if (!el) return;
   el.classList.add("hidden");
-  el.textContent = "";
 }
 
 async function readJsonResponse(response) {
@@ -473,6 +485,8 @@ function handleShortfallMoment(data, targetQty) {
     $("shortfallDesc").textContent = "Supplier C cannot fulfill the entire order, but has the fastest arrival. Rather than waiting 24h for single-source delivery, RestartAI is triggering an adaptive replan to call Supplier D for the remaining 12 units.";
     $("shortfallActionLabel").textContent = "Triggering adaptive call to Supplier D...";
     $("shortfallSpinner").classList.remove("hidden");
+    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "🚨 SHORTFALL: 12 Units (60%)";
+    if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "Calling Supplier D...";
 
     // In DEMO mode, auto-advance replan after 1.5s to show autonomous agent reaction
     if ($("mode").value === "demo") {
@@ -495,6 +509,8 @@ async function replan(isAutoShortfall = false) {
   const shortfallCard = $("shortfallBanner");
   if (shortfallCard && isAutoShortfall) {
     $("shortfallActionLabel").textContent = "Supplier D responding with 12 units...";
+    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "Supplier D: 12 Units (60%)";
+    if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "Connecting to depot...";
   }
 
   logActivity("adaptive_replan_initiated target=shortfall_resolution");
@@ -514,6 +530,8 @@ async function replan(isAutoShortfall = false) {
       $("shortfallDesc").textContent = "Fastest recovery verified: Material arrival in 1.5h + 30m install = 2.0h total downtime. Total economic exposure: ₹13,720 (vs ₹14,400+ for single-supplier alternatives).";
       $("shortfallSpinner")?.classList.add("hidden");
       $("shortfallActionLabel").textContent = "✓ Optimal Split Plan Generated";
+      if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "✓ Supplier D: 12 Units (60%)";
+      if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "ETA: 1.5h · Confirmed";
     }
 
     // Enable Continue to Plan button
@@ -808,7 +826,9 @@ function downloadReport() {
 }
 
 function resetDemo() {
+  stopDemoWalkthrough();
   clearTimeout(autoAdvanceTimer);
+  clearError();
   runId = null;
   lastRunData = null;
   lastAiText = null;
@@ -817,19 +837,26 @@ function resetDemo() {
   sessionStorage.removeItem("restartai_current_module");
 
   $("incidentHeader")?.classList.add("hidden");
+  $("incomingFaultBanner")?.classList.add("hidden");
   $("shortfallBanner")?.classList.add("hidden");
+  $("shortfallBanner")?.classList.remove("resolved");
   $("replanPanel")?.classList.add("hidden");
   $("continueToPlanBtn") && ($("continueToPlanBtn").disabled = true);
-  $("approvalBadge") && ($("approvalBadge").textContent = "AWAITING OPERATOR APPROVAL");
+  $("approvalBadge") && ($("approvalBadge").textContent = "AWAITING OPERATOR APPROVAL", $("approvalBadge").classList.remove("active"));
   $("approvalStatusDisplay") && ($("approvalStatusDisplay").textContent = "PENDING SIGN-OFF", $("approvalStatusDisplay").classList.remove("approved"));
+  $("approvalNotice") && ($("approvalNotice").innerHTML = "⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.");
   $("mod4ApproveBtn") && ($("mod4ApproveBtn").disabled = false);
 
   clearInterval(costTicker);
+  $("incCost") && ($("incCost").textContent = "₹0");
   $("offerRows").innerHTML = '<tr class="empty-row"><td colspan="7">Awaiting supplier responses...</td></tr>';
   $("offerNotes").innerHTML = "";
   $("plan").innerHTML = "";
   $("altPlans").innerHTML = '<tr class="empty-row"><td colspan="6">No alternative combinations calculated yet.</td></tr>';
   $("activityList").innerHTML = '<div class="log-empty">// awaiting incident input</div>';
+
+  // Reset fleet highlight
+  document.querySelectorAll(".fleet-node").forEach(n => n.classList.remove("selected-asset"));
 
   logActivity("demo_reset target=module_incident");
   navigate("#/incident");
@@ -1418,6 +1445,199 @@ async function loadBenchmarkSummary() {
 function maskPhone(p) { return p; }
 function pollTestCall() {}
 function diagnosticHtml() { return ""; }
+
+/* ========================================================================= */
+/* PHASE 7: FLEET BOARD & DEMO STORY WALKTHROUGH                            */
+/* ========================================================================= */
+function selectFleetAsset(assetId) {
+  const sel = $("assetSelector");
+  if (sel) {
+    sel.value = assetId;
+    onAssetSelected(assetId);
+  }
+  document.querySelectorAll(".fleet-node").forEach(node => node.classList.remove("selected-asset"));
+  const cardMap = {
+    "cnc-line-4": "fleetCardCnc",
+    "press-p-12": "fleetCardPress",
+    "inj-mold-02": "fleetCardInj",
+    "smt-place-1": "fleetCardSmt",
+    "pack-conv-1": "fleetCardPack"
+  };
+  const cardId = cardMap[assetId];
+  if (cardId && $(cardId)) {
+    $(cardId).classList.add("selected-asset");
+  }
+}
+
+let walkthroughActive = false;
+let walkthroughPaused = false;
+let walkthroughStep = 0;
+let walkthroughTimerInterval = null;
+let walkthroughElapsedSec = 0;
+let walkthroughTimeout = null;
+
+function runFullDemoStory() {
+  stopDemoWalkthrough();
+  resetDemo();
+
+  walkthroughActive = true;
+  walkthroughPaused = false;
+  walkthroughStep = 1;
+  walkthroughElapsedSec = 0;
+
+  const banner = $("walkthroughBanner");
+  if (banner) banner.classList.remove("hidden");
+  updateWalkthroughBannerUI();
+
+  walkthroughTimerInterval = setInterval(() => {
+    if (!walkthroughPaused) {
+      walkthroughElapsedSec++;
+      const mm = String(Math.floor(walkthroughElapsedSec / 60)).padStart(2, "0");
+      const ss = String(walkthroughElapsedSec % 60).padStart(2, "0");
+      if ($("walkthroughTimer")) $("walkthroughTimer").textContent = `${mm}:${ss}`;
+    }
+  }, 1000);
+
+  executeWalkthroughStep(1);
+}
+
+function updateWalkthroughBannerUI() {
+  const stepTitles = [
+    "",
+    "Stage 1/4: SENSE · Sensor Telemetry Ingestion (CNC Line 4 Spindle Anomaly Detected)",
+    "Stage 2/4: SENSE TO ACT · Supplier Dialing & Autonomous Shortfall Resolution",
+    "Stage 3/4: DECIDE · Exposure Optimization & Counterfactual Explainer",
+    "Stage 4/4: ACT & GOVERNANCE · Dispatch Package Prepared · Awaiting Operator Sign-Off"
+  ];
+  if ($("walkthroughStageText")) {
+    $("walkthroughStageText").textContent = stepTitles[walkthroughStep] || "Hackathon Demo Walkthrough Active";
+  }
+  if ($("btnPauseDemo")) {
+    $("btnPauseDemo").textContent = walkthroughPaused ? "▶ Resume" : "⏸ Pause";
+  }
+}
+
+function togglePauseDemoWalkthrough() {
+  walkthroughPaused = !walkthroughPaused;
+  updateWalkthroughBannerUI();
+  if (!walkthroughPaused) {
+    executeWalkthroughStep(walkthroughStep);
+  } else {
+    clearTimeout(walkthroughTimeout);
+  }
+}
+
+function advanceDemoWalkthroughStage() {
+  clearTimeout(walkthroughTimeout);
+  executeWalkthroughStep(walkthroughStep + 1);
+}
+
+function stopDemoWalkthrough() {
+  walkthroughActive = false;
+  walkthroughPaused = false;
+  walkthroughStep = 0;
+  clearTimeout(walkthroughTimeout);
+  clearInterval(walkthroughTimerInterval);
+  $("walkthroughBanner")?.classList.add("hidden");
+}
+
+function executeWalkthroughStep(step) {
+  if (!walkthroughActive || step > 4) {
+    if (step > 4) {
+      if ($("walkthroughStageText")) {
+        $("walkthroughStageText").textContent = "✓ 3-Minute Demo Walkthrough Complete! Authorize plan below.";
+      }
+    }
+    return;
+  }
+  walkthroughStep = step;
+  updateWalkthroughBannerUI();
+
+  if (step === 1) {
+    navigate("#/incident");
+    selectFleetAsset("cnc-line-4");
+    setTimeout(() => {
+      simulateMachineFault(false);
+      logActivity("walkthrough_stage_1_sense_complete");
+      walkthroughTimeout = setTimeout(() => {
+        if (!walkthroughPaused) executeWalkthroughStep(2);
+      }, 3000);
+    }, 400);
+  } else if (step === 2) {
+    startRecovery();
+    logActivity("walkthrough_stage_2_calls_started");
+    walkthroughTimeout = setTimeout(() => {
+      if (!walkthroughPaused) executeWalkthroughStep(3);
+    }, 5500);
+  } else if (step === 3) {
+    navigate("#/plan");
+    logActivity("walkthrough_stage_3_plan_displayed");
+    setTimeout(() => {
+      getAiRecommendation();
+    }, 1000);
+    walkthroughTimeout = setTimeout(() => {
+      if (!walkthroughPaused) executeWalkthroughStep(4);
+    }, 6000);
+  } else if (step === 4) {
+    navigate("#/approval");
+    logActivity("walkthrough_stage_4_approval_ready");
+    $("mod4ApproveBtn")?.focus();
+  }
+}
+
+/* ========================================================================= */
+/* KEYBOARD SHORTCUTS & MODAL                                                */
+/* ========================================================================= */
+function openKeyboardModal() {
+  $("keyboardModal")?.classList.remove("hidden");
+}
+
+function closeKeyboardModal(e) {
+  if (e && e.target && e.target.classList.contains("modal-card")) return;
+  $("keyboardModal")?.classList.add("hidden");
+}
+
+window.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+  if (tag === "input" || tag === "textarea" || tag === "select") {
+    if (e.key === "Escape") e.target.blur();
+    return;
+  }
+
+  if (e.key === "1") {
+    navigate("#/incident");
+  } else if (e.key === "2") {
+    if (canAccessModule("#/calls")) navigate("#/calls");
+  } else if (e.key === "3") {
+    if (canAccessModule("#/plan")) navigate("#/plan");
+  } else if (e.key === "4") {
+    if (canAccessModule("#/approval")) navigate("#/approval");
+  } else if (e.key === "d" || e.key === "D") {
+    runFullDemoStory();
+  } else if (e.key === "r" || e.key === "R") {
+    resetDemo();
+  } else if (e.key === "?") {
+    openKeyboardModal();
+  } else if (e.key === "Escape") {
+    closeKeyboardModal();
+    closeTranscriptModal();
+    $("chatWidget")?.classList.add("collapsed");
+  } else if (e.key === " " || e.key === "Spacebar") {
+    if (currentModule === "#/calls") {
+      const btn = $("continueToPlanBtn");
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        navigate("#/plan");
+      }
+    } else if (currentModule === "#/plan") {
+      const btn = $("continueToApprovalBtn");
+      if (btn) {
+        e.preventDefault();
+        navigate("#/approval");
+      }
+    }
+  }
+});
 
 // Initialize app
 loadConfig();

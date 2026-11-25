@@ -57,10 +57,34 @@
   </nav>
 
   <div class="header-right">
+    <button id="btnRunFullDemo" class="btn-run-full-demo" onclick="runFullDemoStory()" title="Walk the complete 3-minute hackathon demo story (Key: D)">
+      <span class="btn-icon">▶</span> Run Full Demo
+    </button>
+    <button id="btnTopResetDemo" class="btn-top-reset" onclick="resetDemo()" title="Reset to clean baseline (Key: R)">
+      ↺ Reset
+    </button>
+    <button id="btnHelpShortcuts" class="btn-shortcuts-toggle" onclick="openKeyboardModal()" title="Keyboard shortcuts (Key: ?)">
+      ⌨
+    </button>
     <div id="clock" class="clock">00:00:00</div>
     <div id="modePill" class="pill">MODE · DEMO</div>
   </div>
 </header>
+
+<!-- Hackathon Walkthrough Banner (Active when 'Run Full Demo' is triggered) -->
+<aside id="walkthroughBanner" class="walkthrough-banner hidden" aria-live="polite">
+  <div class="walkthrough-content">
+    <span class="walkthrough-pulse-dot"></span>
+    <span class="walkthrough-tag">3-MIN LIVE DEMO</span>
+    <span id="walkthroughStageText" class="walkthrough-text">Initializing autonomous recovery story...</span>
+  </div>
+  <div class="walkthrough-controls">
+    <span id="walkthroughTimer" class="walkthrough-timer mono">00:00</span>
+    <button type="button" id="btnPauseDemo" class="btn-walkthrough-ctrl" onclick="togglePauseDemoWalkthrough()">⏸ Pause</button>
+    <button type="button" id="btnNextDemoStage" class="btn-walkthrough-ctrl" onclick="advanceDemoWalkthroughStage()">⏭ Skip Ahead</button>
+    <button type="button" class="btn-walkthrough-ctrl close" onclick="stopDemoWalkthrough()">✕ Exit Walkthrough</button>
+  </div>
+</aside>
 
 <main class="app-main">
 
@@ -88,8 +112,15 @@
     </div>
   </section>
 
-  <!-- Global Notification / Error -->
-  <div id="error" class="error hidden" role="alert"></div>
+  <!-- Global Notification / Friendly Alerts Container -->
+  <div id="error" class="error-toast hidden" role="alert">
+    <div class="toast-icon">ℹ️</div>
+    <div class="toast-body">
+      <div id="errorMessage" class="toast-msg"></div>
+      <div id="errorTip" class="toast-tip"></div>
+    </div>
+    <button type="button" class="toast-close" onclick="clearError()" aria-label="Dismiss alert">✕</button>
+  </div>
 
   <!-- ========================================================================= -->
   <!-- MODULE 1: INCIDENT SETUP (#/incident)                                     -->
@@ -100,6 +131,117 @@
       <div class="eyebrow">EMERGENCY PRODUCTION RECOVERY · 3-MINUTE RESPONSE</div>
       <h1>When the production line stops,<br>the recovery agent starts dialing.</h1>
       <p class="sub">RestartAI autonomously interrogates suppliers, identifies partial stock shortfalls, matches technician capacity, and builds the lowest economic exposure plan before human sign-off.</p>
+    </div>
+
+    <!-- Live Industrial Incident Board & Monitored Fleet Grid -->
+    <div id="liveIncidentBoard" class="panel fleet-board-panel">
+      <div class="fleet-board-header">
+        <div>
+          <div class="eyebrow" style="color:var(--orange);">ACTIVE FACTORY FLEET · TELEMETRY MONITOR</div>
+          <h2>Live Production Incident & Equipment Fleet Board</h2>
+          <p class="hint">Continuous vibration, acoustic, and thermal telemetry across factory production nodes. Click any asset below to inspect specs or trigger recovery.</p>
+        </div>
+        <div class="fleet-status-pill">
+          <span class="status-pulse red"></span>
+          <span>1 ACTIVE FAILURE · 4 NODES NORMAL</span>
+        </div>
+      </div>
+
+      <div class="fleet-grid">
+        <!-- Node 1: CNC Line 4 (Critical Failure - Golden Scenario) -->
+        <div id="fleetCardCnc" class="fleet-node critical active-incident" onclick="selectFleetAsset('cnc-line-4')">
+          <div class="node-head">
+            <span class="node-badge danger">🚨 CRITICAL FAULT</span>
+            <span class="node-loss mono">₹5,000/hr</span>
+          </div>
+          <h4>CNC Production Line 4</h4>
+          <div class="node-meta">Spindle Axis Z · <b>SKF 6205-2RS</b> (20 units)</div>
+          <div class="node-telemetry danger">
+            <span>RMS Vibration: <b>8.4 mm/s</b> (Limit 7.0)</span>
+            <span class="node-state-pill">RECOVERY ACTIVE</span>
+          </div>
+        </div>
+
+        <!-- Node 2: Stamping Press P-12 -->
+        <div id="fleetCardPress" class="fleet-node normal" onclick="selectFleetAsset('press-p-12')">
+          <div class="node-head">
+            <span class="node-badge success">🟢 NORMAL</span>
+            <span class="node-loss mono">₹8,000/hr</span>
+          </div>
+          <h4>Stamping Press P-12</h4>
+          <div class="node-meta">Main Ram · <b>SEAL-KIT-HYD-80</b> (15 units)</div>
+          <div class="node-telemetry success">
+            <span>Hydraulic Pressure: <b>195 bar</b> (Nominal)</span>
+            <span class="node-state-pill">OPERATIONAL</span>
+          </div>
+        </div>
+
+        <!-- Node 3: Injection Molding Unit 02 -->
+        <div id="fleetCardInj" class="fleet-node normal" onclick="selectFleetAsset('inj-mold-02')">
+          <div class="node-head">
+            <span class="node-badge success">🟢 NORMAL</span>
+            <span class="node-loss mono">₹3,500/hr</span>
+          </div>
+          <h4>Injection Molding Unit 02</h4>
+          <div class="node-meta">Barrel Zone 3 · <b>HEATER-BAND-400W</b> (25 units)</div>
+          <div class="node-telemetry success">
+            <span>Zone Temp: <b>240°C</b> (Within Band)</span>
+            <span class="node-state-pill">OPERATIONAL</span>
+          </div>
+        </div>
+
+        <!-- Node 4: Automated SMT Placement #1 -->
+        <div id="fleetCardSmt" class="fleet-node normal" onclick="selectFleetAsset('smt-place-1')">
+          <div class="node-head">
+            <span class="node-badge success">🟢 NORMAL</span>
+            <span class="node-loss mono">₹10,000/hr</span>
+          </div>
+          <h4>Automated SMT Line #1</h4>
+          <div class="node-meta">Head 4 · <b>NOZZLE-VAC-SMT-04</b> (30 units)</div>
+          <div class="node-telemetry success">
+            <span>Vacuum Level: <b>92 kPa</b> (Nominal)</span>
+            <span class="node-state-pill">OPERATIONAL</span>
+          </div>
+        </div>
+
+        <!-- Node 5: Packaging Conveyor C-1 -->
+        <div id="fleetCardPack" class="fleet-node warning" onclick="selectFleetAsset('pack-conv-1')">
+          <div class="node-head">
+            <span class="node-badge warning">🟡 ADVISORY</span>
+            <span class="node-loss mono">₹2,000/hr</span>
+          </div>
+          <h4>Packaging Conveyor C-1</h4>
+          <div class="node-meta">Drive End · <b>OPTICAL-SENSOR-M18</b> (40 units)</div>
+          <div class="node-telemetry warning">
+            <span>Sensor Alignment: <b>Drift Detected</b></span>
+            <span class="node-state-pill">MONITORING</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fleet Impact Summary Strip -->
+      <div class="fleet-impact-strip">
+        <div class="fleet-impact-item">
+          <small>AVERAGE RECOVERY TIME</small>
+          <b class="mono success">2.34 hrs</b>
+          <span>vs 22.6h standard freight</span>
+        </div>
+        <div class="fleet-impact-item">
+          <small>ON-TIME RECOVERY RATE</small>
+          <b class="mono success">80.0%</b>
+          <span>vs 0.0% cheapest heuristic</span>
+        </div>
+        <div class="fleet-impact-item">
+          <small>AVERAGE LOSS PREVENTED</small>
+          <b class="mono success">₹124,692 / inc</b>
+          <span>86.5% financial exposure cut</span>
+        </div>
+        <div class="fleet-impact-item">
+          <small>GOVERNANCE DISPATCH</small>
+          <b class="mono highlight">100% Gated</b>
+          <span>Operator must authorize POs</span>
+        </div>
+      </div>
     </div>
 
     <!-- Mode Selector & Live Warning -->
@@ -318,15 +460,29 @@
 
     <!-- THE SHORTFALL MOMENT (The Demo Highlight) -->
     <div id="shortfallBanner" class="shortfall-moment-card hidden">
-      <div class="shortfall-pulse-dot"></div>
-      <div class="shortfall-content">
-        <div class="shortfall-eyebrow">ADAPTIVE RECOVERY TRIGGERED · SHORTFALL DETECTED</div>
-        <h3 id="shortfallTitle">Supplier C has 8 of 20 units (pickup in 30m). Shortfall: 12 units.</h3>
-        <p id="shortfallDesc">Rather than discarding Supplier C or overpaying a slow single supplier, RestartAI is dispatching an adaptive call to Supplier D to secure the remaining 12 units.</p>
+      <div class="shortfall-card-top">
+        <div class="shortfall-pulse-dot"></div>
+        <div class="shortfall-content">
+          <div class="shortfall-eyebrow">🚨 THE SHORTFALL MOMENT · AUTONOMOUS MULTI-SUPPLIER ARBITRATION</div>
+          <h3 id="shortfallTitle">Supplier C has 8 of 20 units (pickup in 30m). Shortfall: 12 units.</h3>
+          <p id="shortfallDesc">Rather than waiting 24h for a slow single distributor or overpaying, RestartAI locks Supplier C's 8 units and autonomously calls Supplier D for the remaining 12 units.</p>
+        </div>
+        <div class="shortfall-action">
+          <div id="shortfallSpinner" class="spinner"></div>
+          <span id="shortfallActionLabel">Dialing Supplier D...</span>
+        </div>
       </div>
-      <div class="shortfall-action">
-        <div id="shortfallSpinner" class="spinner"></div>
-        <span id="shortfallActionLabel">Dialing Supplier D...</span>
+      
+      <!-- Visual Split-Sourcing Allocation Bar -->
+      <div class="shortfall-breakdown-bar">
+        <div class="split-leg leg-c" style="flex: 8;">
+          <span class="leg-label">Supplier C: 8 Units (40%)</span>
+          <span class="leg-sub">Pickup Ready: 30m</span>
+        </div>
+        <div id="shortfallLegD" class="split-leg leg-shortfall" style="flex: 12;">
+          <span id="shortfallLegDLabel" class="leg-label">🚨 SHORTAGE: 12 Units (60%)</span>
+          <span id="shortfallLegDEta" class="leg-sub">Calling Supplier D...</span>
+        </div>
       </div>
     </div>
 
@@ -1078,6 +1234,50 @@
 
     <div class="modal-footer">
       <button class="secondary" onclick="closeTranscriptModal()">Close Transcript</button>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard Shortcuts Help Modal -->
+<div id="keyboardModal" class="modal-overlay hidden" onclick="closeKeyboardModal(event)">
+  <div class="modal-card keyboard-modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow" style="color:var(--orange);">KEYBOARD ACCESSIBILITY & CONTROLS</div>
+        <h2>Hotkeys & Navigation Shortcuts</h2>
+      </div>
+      <button class="modal-close" onclick="closeKeyboardModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="shortcut-list">
+        <div class="shortcut-item">
+          <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> / <kbd>4</kbd>
+          <span>Jump to Module 1 (Incident), Module 2 (Calls), Module 3 (Plan), or Module 4 (Approval)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>D</kbd>
+          <span><b>Run Full 3-Minute Demo Walkthrough</b> (autonomous automated story presentation)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>R</kbd>
+          <span><b>Reset Demo Scenario</b> (returns app and state to clean initial baseline)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Space</kbd>
+          <span>Advance to next module when the current stage completes</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>Esc</kbd>
+          <span>Close open modal dialogs, transcript viewer, or chat widget</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>?</kbd>
+          <span>Toggle this keyboard shortcuts cheatsheet</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeKeyboardModal()">Close (Esc)</button>
     </div>
   </div>
 </div>
