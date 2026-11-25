@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from app.call_e_service import CallEError, CalleService
-from app.models import RecoveryRequest, Supplier
+from app.services.call_e_service import CallEError, CalleService
+from app.models.models import RecoveryRequest, Supplier
 
 
 def request():
@@ -47,7 +47,7 @@ def test_live_create_and_poll_maps_structured_result():
     client.__aenter__.return_value = client
     client.__aexit__.return_value = False
 
-    with patch("app.call_e_service.httpx.AsyncClient", return_value=client), patch("app.call_e_service.asyncio.sleep", new_callable=AsyncMock):
+    with patch("app.services.call_e_service.httpx.AsyncClient", return_value=client), patch("app.services.call_e_service.asyncio.sleep", new_callable=AsyncMock):
         result = asyncio.run(service.call_supplier_async(request().suppliers[0], request()))
     assert result["call_id"] == "call_test"
     assert result["quantity_available"] == 20
@@ -63,7 +63,7 @@ def test_live_http_errors_are_explicit(status, detail):
     client.post.return_value = response(status, {"message": detail})
     client.__aenter__.return_value = client
     client.__aexit__.return_value = False
-    with patch("app.call_e_service.httpx.AsyncClient", return_value=client):
+    with patch("app.services.call_e_service.httpx.AsyncClient", return_value=client):
         with pytest.raises(CallEError, match=detail if status not in {401, 422, 429} else "CALL-E"):
             asyncio.run(service.create_call(request().suppliers[0], request()))
 
@@ -92,7 +92,7 @@ def test_failed_status_preserves_nested_diagnostics_without_secrets():
     client.get.return_value = failed
     client.__aenter__.return_value = client
     client.__aexit__.return_value = False
-    with patch("app.call_e_service.httpx.AsyncClient", return_value=client):
+    with patch("app.services.call_e_service.httpx.AsyncClient", return_value=client):
         result = asyncio.run(service.test_call_status("call_failed"))
     assert result["success"] is True
     assert result["status"] == "failed"

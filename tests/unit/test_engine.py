@@ -1,7 +1,7 @@
-from app.recovery_engine import RecoveryEngine, RUNS, IDEMPOTENCY
+from app.engine.recovery_engine import RecoveryEngine, RUNS, IDEMPOTENCY
 import asyncio
-from app.call_e_service import CallEError, CalleService
-from app.models import RecoveryRequest, Supplier
+from app.services.call_e_service import CallEError, CalleService
+from app.models.models import RecoveryRequest, Supplier
 
 def request(**kwargs):
     base = dict(

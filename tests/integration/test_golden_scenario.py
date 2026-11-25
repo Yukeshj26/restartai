@@ -2,9 +2,9 @@ import asyncio
 import httpx
 import pytest
 from app.main import app
-from app.call_e_service import CalleService
-from app.models import RecoveryRequest, Supplier
-from app.recovery_engine import RecoveryEngine, RUNS, IDEMPOTENCY
+from app.services.call_e_service import CalleService
+from app.models.models import RecoveryRequest, Supplier
+from app.engine.recovery_engine import RecoveryEngine, RUNS, IDEMPOTENCY
 
 
 @pytest.fixture(autouse=True)

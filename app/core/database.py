@@ -1,0 +1,119 @@
+"""SQLite connection manager and schema initialization."""
+import sqlite3
+import logging
+from pathlib import Path
+from contextlib import contextmanager
+from typing import Generator
+from .config import settings
+
+logger = logging.getLogger("restartai.db")
+
+SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS runs (
+    run_id TEXT PRIMARY KEY,
+    stage TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    maintenance_json TEXT NOT NULL,
+    next_supplier_index INTEGER NOT NULL DEFAULT 0,
+    approved INTEGER NOT NULL DEFAULT 0,
+    call_failures_json TEXT DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS offers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    supplier TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    quantity_available INTEGER NOT NULL DEFAULT 0,
+    unit_price REAL NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'INR',
+    availability_hours REAL NOT NULL DEFAULT 999,
+    delivery_method TEXT NOT NULL DEFAULT 'unknown',
+    compatible INTEGER NOT NULL DEFAULT 0,
+    compatibility_confidence REAL NOT NULL DEFAULT 0,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'UNAVAILABLE',
+    source TEXT NOT NULL DEFAULT 'demo',
+    call_id TEXT,
+    notes TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    is_recommended INTEGER NOT NULL DEFAULT 0,
+    plan_json TEXT NOT NULL,
+    total_exposure REAL NOT NULL,
+    recovery_time_hours REAL NOT NULL,
+    feasible INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS calls (
+    call_id TEXT PRIMARY KEY,
+    run_id TEXT,
+    supplier TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    status TEXT NOT NULL,
+    record_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    event_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    payload_json TEXT DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS idempotency (
+    key TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_offers_run_id ON offers(run_id);
+CREATE INDEX IF NOT EXISTS idx_plans_run_id ON plans(run_id);
+CREATE INDEX IF NOT EXISTS idx_calls_run_id ON calls(run_id);
+CREATE INDEX IF NOT EXISTS idx_audit_run_id ON audit_logs(run_id);
+"""
+
+
+def init_db(db_path: Path | None = None) -> None:
+    """Initialize SQLite tables and indexes."""
+    path = db_path or settings.db_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(path) as conn:
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.executescript(SCHEMA_SQL)
+        conn.commit()
+    logger.info("Database initialized at %s", path)
+
+
+@contextmanager
+def get_db(db_path: Path | None = None) -> Generator[sqlite3.Connection, None, None]:
+    """Yields a SQLite connection configured for WAL mode and dictionary rows."""
+    path = db_path or settings.db_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path, timeout=15.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

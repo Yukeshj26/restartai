@@ -4,20 +4,75 @@ import logging
 import uuid
 from itertools import combinations
 from pathlib import Path
-from .models import RecoveryRequest, Offer, PlanLeg, RecoveryPlan
+from typing import Optional
 
-RUNS = {}
-IDEMPOTENCY = {}
-logger = logging.getLogger(__name__)
+from ..models import RecoveryRequest, Offer, PlanLeg, RecoveryPlan
+from ..services.storage_service import StorageService
+
+logger = logging.getLogger("restartai.engine")
+
+
+class StorageRunsProxy:
+    def __init__(self, storage: StorageService):
+        self.storage = storage
+
+    def __getitem__(self, run_id: str) -> dict:
+        data = self.storage.get_run(run_id)
+        if data is None:
+            raise KeyError(f"Run {run_id} not found")
+        return data
+
+    def __setitem__(self, run_id: str, state: dict) -> None:
+        self.storage.save_run(state)
+
+    def __contains__(self, run_id: str) -> bool:
+        return self.storage.get_run(run_id) is not None
+
+    def get(self, run_id: str, default=None):
+        data = self.storage.get_run(run_id)
+        return data if data is not None else default
+
+    def clear(self) -> None:
+        self.storage.clear()
+
+
+class StorageIdempotencyProxy:
+    def __init__(self, storage: StorageService):
+        self.storage = storage
+
+    def __getitem__(self, key: str) -> str:
+        val = self.storage.get_idempotency(key)
+        if val is None:
+            raise KeyError(key)
+        return val
+
+    def __setitem__(self, key: str, run_id: str) -> None:
+        self.storage.set_idempotency(key, run_id)
+
+    def __contains__(self, key: str) -> bool:
+        return self.storage.get_idempotency(key) is not None
+
+    def get(self, key: str, default=None):
+        val = self.storage.get_idempotency(key)
+        return val if val is not None else default
+
+    def clear(self) -> None:
+        self.storage.clear()
+
+
+default_storage = StorageService()
+RUNS = StorageRunsProxy(default_storage)
+IDEMPOTENCY = StorageIdempotencyProxy(default_storage)
 
 
 class RecoveryEngine:
-    def __init__(self, calle_service):
+    def __init__(self, calle_service, storage: Optional[StorageService] = None):
         self.calle = calle_service
+        self.storage = storage or default_storage
         self.maintenance = self._load_maintenance()
 
     def _load_maintenance(self):
-        path = Path(__file__).resolve().parent.parent / "data" / "maintenance_tasks.json"
+        path = Path(__file__).resolve().parent.parent.parent / "data" / "maintenance_tasks.json"
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _maintenance_match(self, part_number, part_description):
@@ -106,6 +161,7 @@ class RecoveryEngine:
         RUNS[run_id] = state
         if key:
             IDEMPOTENCY[key] = run_id
+        self.storage.add_audit_log(run_id, "recovery_started", f"Recovery started for {request.machine} ({request.part_number})")
         return self._snapshot(run_id)
 
     async def start_async(self, request: RecoveryRequest):
@@ -144,6 +200,7 @@ class RecoveryEngine:
         RUNS[run_id] = state
         if key:
             IDEMPOTENCY[key] = run_id
+        self.storage.add_audit_log(run_id, "recovery_started_live", f"LIVE recovery started for {request.machine} ({request.part_number})")
         return self._snapshot(run_id)
 
     def _call_and_store(self, state, request, index):
@@ -209,6 +266,8 @@ class RecoveryEngine:
         }
         state["plans"] = [p.model_dump() for p in self._generate_plans(request, state["offers"], state["maintenance"])]
         state["stage"] = "replanned"
+        RUNS[run_id] = state
+        self.storage.add_audit_log(run_id, "replanned", f"Recovery replanned with {len(state['offers'])} offers, {len(state['plans'])} plans")
         return self._snapshot(run_id)
 
     async def replan_async(self, run_id):
@@ -233,6 +292,8 @@ class RecoveryEngine:
         state["maintenance"] = {"task": task_name, "required_technicians": required_techs, "installation_minutes": installation, "source": technician_intelligence["source"], "technician_intelligence": technician_intelligence}
         state["plans"] = [p.model_dump() for p in self._generate_plans(request, state["offers"], state["maintenance"])]
         state["stage"] = "replanned"
+        RUNS[run_id] = state
+        self.storage.add_audit_log(run_id, "replanned_live", f"LIVE recovery replanned with {len(state['offers'])} offers, {len(state['plans'])} plans")
         return self._snapshot(run_id)
 
     def approve(self, run_id):
@@ -245,6 +306,8 @@ class RecoveryEngine:
             raise ValueError("The recommended plan is not feasible and cannot be approved.")
         state["approved"] = True
         state["stage"] = "human_approved"
+        RUNS[run_id] = state
+        self.storage.add_audit_log(run_id, "approved", "Recovery plan approved by human manager")
         return self._snapshot(run_id)
 
     def get(self, run_id):
