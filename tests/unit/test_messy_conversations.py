@@ -1,4 +1,5 @@
 """Unit tests for Phase 3: Messy supplier conversations, extraction quotes, and chaos scenarios."""
+
 import pytest
 from app.services.call_e_service import CalleService
 from app.engine.recovery_engine import RecoveryEngine, RUNS, IDEMPOTENCY
@@ -50,11 +51,17 @@ def test_standard_scenario_offers_contain_transcripts_and_source_quotes():
         assert o["status"] == "CONFIRMED"
         assert o["confirmed"] is True
         assert len(o["transcript"]) > 20, f"Offer {o['supplier']} missing transcript"
-        assert len(o["extracted_fields"]) > 0, f"Offer {o['supplier']} missing extracted_fields"
+        assert (
+            len(o["extracted_fields"]) > 0
+        ), f"Offer {o['supplier']} missing extracted_fields"
         for field_name, extraction in o["extracted_fields"].items():
-            assert "source_quote" in extraction, f"Field {field_name} missing source_quote"
+            assert (
+                "source_quote" in extraction
+            ), f"Field {field_name} missing source_quote"
             assert "confidence" in extraction, f"Field {field_name} missing confidence"
-            assert extraction["confidence"] >= 0.90, f"Field {field_name} low confidence"
+            assert (
+                extraction["confidence"] >= 0.90
+            ), f"Field {field_name} low confidence"
 
 
 def test_chaos_scenario_supplier_unsure_marks_tentative():
@@ -152,7 +159,10 @@ def test_tentative_and_unconfirmed_offers_never_enter_plans():
     calle = CalleService()
     engine = RecoveryEngine(calle)
     # Only supply an unconfirmed tentative supplier
-    req = make_request("supplier_unsure", suppliers=[Supplier(name="Supplier A", phone="+919876543211")])
+    req = make_request(
+        "supplier_unsure",
+        suppliers=[Supplier(name="Supplier A", phone="+919876543211")],
+    )
 
     snap = engine.start(req)
     snap = engine.replan(snap["run_id"])

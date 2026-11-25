@@ -7,6 +7,7 @@ Invariants verified across randomized and edge-case operational configurations:
 4. Downtime Rate Monotonicity: Higher downtime cost shifts preference toward speed; zero downtime shifts preference toward price.
 5. Determinism: Identical inputs yield mathematically identical plans, leg orders, and costs.
 """
+
 import random
 from itertools import combinations
 import pytest
@@ -80,22 +81,28 @@ def test_property_never_overpurchases(engine):
         )
 
         maintenance = {"required_technicians": 2, "installation_minutes": 30}
-        plans = engine._generate_plans(req, [o.model_dump() for o in offers], maintenance)
+        plans = engine._generate_plans(
+            req, [o.model_dump() for o in offers], maintenance
+        )
         for p in plans:
             total_purchased = sum(l.quantity for l in p.legs)
             # Must never exceed requested quota
-            assert total_purchased <= req_qty, f"Over-purchased: {total_purchased} > {req_qty}"
+            assert (
+                total_purchased <= req_qty
+            ), f"Over-purchased: {total_purchased} > {req_qty}"
 
             # If plan claims feasibility, it must fulfill exactly the requested quota
             if p.feasible:
-                assert total_purchased == req_qty, f"Feasible plan did not fulfill exact quota: {total_purchased} != {req_qty}"
+                assert (
+                    total_purchased == req_qty
+                ), f"Feasible plan did not fulfill exact quota: {total_purchased} != {req_qty}"
 
             # Each leg must not exceed supplier's available stock
             for leg in p.legs:
                 supp = next(o for o in offers if o.supplier == leg.supplier)
-                assert leg.quantity <= supp.quantity_available, (
-                    f"Leg allocated {leg.quantity} from {leg.supplier}, but stock was only {supp.quantity_available}"
-                )
+                assert (
+                    leg.quantity <= supp.quantity_available
+                ), f"Leg allocated {leg.quantity} from {leg.supplier}, but stock was only {supp.quantity_available}"
 
 
 def test_property_never_exceeds_deadline_when_feasible(engine):
@@ -137,13 +144,17 @@ def test_property_never_exceeds_deadline_when_feasible(engine):
         )
 
         maintenance = {"required_technicians": 2, "installation_minutes": install_mins}
-        plans = engine._generate_plans(req, [o.model_dump() for o in offers], maintenance)
+        plans = engine._generate_plans(
+            req, [o.model_dump() for o in offers], maintenance
+        )
         if feasible_combination_exists and plans:
             rec = plans[0]
-            assert rec.feasible is True, f"Planner marked feasible scenario as infeasible in trial {trial}"
-            assert rec.recovery_time_hours <= max_h, (
-                f"Recovery time {rec.recovery_time_hours}h exceeded max {max_h}h when feasible combination existed"
-            )
+            assert (
+                rec.feasible is True
+            ), f"Planner marked feasible scenario as infeasible in trial {trial}"
+            assert (
+                rec.recovery_time_hours <= max_h
+            ), f"Recovery time {rec.recovery_time_hours}h exceeded max {max_h}h when feasible combination existed"
 
 
 def test_property_matches_bruteforce_optimum_on_small_cases(engine):
@@ -184,7 +195,10 @@ def test_property_matches_bruteforce_optimum_on_small_cases(engine):
                     continue  # Infeasible
 
                 tot_exposure = pur_cost + round(rec_time * downtime_rate, 2)
-                if brute_force_best_exposure is None or tot_exposure < brute_force_best_exposure:
+                if (
+                    brute_force_best_exposure is None
+                    or tot_exposure < brute_force_best_exposure
+                ):
                     brute_force_best_exposure = tot_exposure
 
         # 2. RestartAI Engine Search
@@ -201,15 +215,19 @@ def test_property_matches_bruteforce_optimum_on_small_cases(engine):
         )
 
         maintenance = {"required_technicians": 2, "installation_minutes": install_mins}
-        plans = engine._generate_plans(req, [o.model_dump() for o in offers], maintenance)
+        plans = engine._generate_plans(
+            req, [o.model_dump() for o in offers], maintenance
+        )
         feasible_plans = [p for p in plans if p.feasible]
 
         if brute_force_best_exposure is not None:
-            assert len(feasible_plans) > 0, f"Brute force found optimal solution {brute_force_best_exposure}, but engine found none"
+            assert (
+                len(feasible_plans) > 0
+            ), f"Brute force found optimal solution {brute_force_best_exposure}, but engine found none"
             engine_best_exposure = feasible_plans[0].total_exposure
-            assert abs(engine_best_exposure - brute_force_best_exposure) < 1.0, (
-                f"Mismatch in trial {trial}: Engine exposure {engine_best_exposure} != Brute-force {brute_force_best_exposure}"
-            )
+            assert (
+                abs(engine_best_exposure - brute_force_best_exposure) < 1.0
+            ), f"Mismatch in trial {trial}: Engine exposure {engine_best_exposure} != Brute-force {brute_force_best_exposure}"
 
 
 def test_property_downtime_rate_monotonicity(engine):
@@ -253,7 +271,7 @@ def test_property_downtime_rate_monotonicity(engine):
             extracted_fields={},
             transcript="",
             retry_count=0,
-        )
+        ),
     ]
 
     maintenance = {"required_technicians": 2, "installation_minutes": 30}
@@ -270,8 +288,12 @@ def test_property_downtime_rate_monotonicity(engine):
         available_technicians=3,
         suppliers=make_dummy_suppliers(),
     )
-    plans_zero = engine._generate_plans(req_zero_loss, [o.model_dump() for o in offers], maintenance)
-    assert plans_zero[0].legs[0].supplier == "SlowCheap", "At zero downtime rate, cheapest supplier must be chosen"
+    plans_zero = engine._generate_plans(
+        req_zero_loss, [o.model_dump() for o in offers], maintenance
+    )
+    assert (
+        plans_zero[0].legs[0].supplier == "SlowCheap"
+    ), "At zero downtime rate, cheapest supplier must be chosen"
 
     # Case B: Downtime rate = Rs 50,000/hr (speed dominates price)
     req_high_loss = RecoveryRequest(
@@ -285,8 +307,12 @@ def test_property_downtime_rate_monotonicity(engine):
         available_technicians=3,
         suppliers=make_dummy_suppliers(),
     )
-    plans_high = engine._generate_plans(req_high_loss, [o.model_dump() for o in offers], maintenance)
-    assert plans_high[0].legs[0].supplier == "FastCostly", "At high downtime rate, fastest supplier must be chosen"
+    plans_high = engine._generate_plans(
+        req_high_loss, [o.model_dump() for o in offers], maintenance
+    )
+    assert (
+        plans_high[0].legs[0].supplier == "FastCostly"
+    ), "At high downtime rate, fastest supplier must be chosen"
 
 
 def test_property_planner_determinism(engine):

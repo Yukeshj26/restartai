@@ -1,4 +1,5 @@
-"""SQLite storage service replacing in-memory dictionaries."""
+"""Storage service supporting SQLite and PostgreSQL backends."""
+
 import json
 import logging
 from datetime import datetime, timezone
@@ -10,9 +11,12 @@ logger = logging.getLogger("restartai.storage")
 
 
 class StorageService:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(
+        self, db_path: Optional[Path] = None, database_url: Optional[str] = None
+    ):
         self.db_path = db_path
-        init_db(self.db_path)
+        self.database_url = database_url
+        init_db(self.db_path, self.database_url)
 
     @staticmethod
     def _now() -> str:
@@ -21,17 +25,22 @@ class StorageService:
     def get_idempotency(self, key: str) -> Optional[str]:
         if not key:
             return None
-        with get_db(self.db_path) as conn:
-            row = conn.execute("SELECT run_id FROM idempotency WHERE key = ?", (key,)).fetchone()
+        with get_db(self.db_path, self.database_url) as conn:
+            row = conn.execute(
+                "SELECT run_id FROM idempotency WHERE key = ?", (key,)
+            ).fetchone()
             return row["run_id"] if row else None
 
     def set_idempotency(self, key: str, run_id: str) -> None:
         if not key:
             return
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO idempotency (key, run_id, created_at) VALUES (?, ?, ?)",
-                (key, run_id, self._now())
+                """
+                INSERT INTO idempotency (key, run_id, created_at) VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET run_id = excluded.run_id, created_at = excluded.created_at
+                """,
+                (key, run_id, self._now()),
             )
 
     def save_run(self, state: Dict[str, Any]) -> None:
@@ -45,7 +54,7 @@ class StorageService:
             "cross_reference": state.get("cross_reference"),
             "technician_schedule": state.get("technician_schedule"),
         }
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute(
                 """
                 INSERT INTO runs (run_id, stage, mode, request_json, maintenance_json, next_supplier_index, approved, call_failures_json, decisions_json, created_at, updated_at)
@@ -72,8 +81,8 @@ class StorageService:
                     json.dumps(state.get("call_failures", [])),
                     json.dumps(decisions),
                     state.get("created_at", now),
-                    now
-                )
+                    now,
+                ),
             )
 
             # Persist offers
@@ -107,8 +116,8 @@ class StorageService:
                         o.get("transcript", ""),
                         json.dumps(o.get("extracted_fields", {})),
                         int(o.get("retry_count", 0)),
-                        now
-                    )
+                        now,
+                    ),
                 )
 
             # Persist plans
@@ -129,13 +138,15 @@ class StorageService:
                         float(p.get("total_exposure", 0.0)),
                         float(p.get("recovery_time_hours", 0.0)),
                         1 if p.get("feasible") else 0,
-                        now
-                    )
+                        now,
+                    ),
                 )
 
     def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
-        with get_db(self.db_path) as conn:
-            run_row = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        with get_db(self.db_path, self.database_url) as conn:
+            run_row = conn.execute(
+                "SELECT * FROM runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
             if not run_row:
                 return None
 
@@ -158,24 +169,39 @@ class StorageService:
                     "source": o["source"],
                     "call_id": o["call_id"],
                     "notes": o["notes"] or "",
-                    "transcript": o["transcript"] if "transcript" in o.keys() and o["transcript"] else "",
-                    "extracted_fields": json.loads(o["extracted_fields_json"]) if "extracted_fields_json" in o.keys() and o["extracted_fields_json"] else {},
+                    "transcript": (
+                        o["transcript"]
+                        if "transcript" in o.keys() and o["transcript"]
+                        else ""
+                    ),
+                    "extracted_fields": (
+                        json.loads(o["extracted_fields_json"])
+                        if "extracted_fields_json" in o.keys()
+                        and o["extracted_fields_json"]
+                        else {}
+                    ),
                     "retry_count": o["retry_count"] if "retry_count" in o.keys() else 0,
                 }
                 for o in offer_rows
             ]
 
             plan_rows = conn.execute(
-                "SELECT plan_json FROM plans WHERE run_id = ? ORDER BY rank ASC", (run_id,)
+                "SELECT plan_json FROM plans WHERE run_id = ? ORDER BY rank ASC",
+                (run_id,),
             ).fetchall()
             plans = [json.loads(p["plan_json"]) for p in plan_rows]
 
             call_rows = conn.execute(
-                "SELECT record_json FROM calls WHERE run_id = ? ORDER BY updated_at DESC", (run_id,)
+                "SELECT record_json FROM calls WHERE run_id = ? ORDER BY updated_at DESC",
+                (run_id,),
             ).fetchall()
             calls = [json.loads(c["record_json"]) for c in call_rows]
 
-            decisions = json.loads(run_row["decisions_json"]) if "decisions_json" in run_row.keys() and run_row["decisions_json"] else {}
+            decisions = (
+                json.loads(run_row["decisions_json"])
+                if "decisions_json" in run_row.keys() and run_row["decisions_json"]
+                else {}
+            )
 
             return {
                 "run_id": run_row["run_id"],
@@ -185,7 +211,12 @@ class StorageService:
                 "maintenance": json.loads(run_row["maintenance_json"]),
                 "next_supplier_index": run_row["next_supplier_index"],
                 "approved": bool(run_row["approved"]),
-                "call_failures": json.loads(run_row["call_failures_json"]) if "call_failures_json" in run_row.keys() and run_row["call_failures_json"] else [],
+                "call_failures": (
+                    json.loads(run_row["call_failures_json"])
+                    if "call_failures_json" in run_row.keys()
+                    and run_row["call_failures_json"]
+                    else []
+                ),
                 "offers": offers,
                 "plans": plans,
                 "calls": calls,
@@ -199,9 +230,11 @@ class StorageService:
                 "updated_at": run_row["updated_at"],
             }
 
-    def save_call(self, call_id: str, record: Dict[str, Any], run_id: Optional[str] = None) -> None:
+    def save_call(
+        self, call_id: str, record: Dict[str, Any], run_id: Optional[str] = None
+    ) -> None:
         now = self._now()
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute(
                 """
                 INSERT INTO calls (call_id, run_id, supplier, phone, status, record_json, created_at, updated_at)
@@ -222,35 +255,61 @@ class StorageService:
                     record.get("status", "unknown"),
                     json.dumps(record),
                     record.get("created_at", now),
-                    now
-                )
+                    now,
+                ),
             )
 
     def get_call(self, call_id: str) -> Optional[Dict[str, Any]]:
-        with get_db(self.db_path) as conn:
-            row = conn.execute("SELECT record_json FROM calls WHERE call_id = ?", (call_id,)).fetchone()
+        with get_db(self.db_path, self.database_url) as conn:
+            row = conn.execute(
+                "SELECT record_json FROM calls WHERE call_id = ?", (call_id,)
+            ).fetchone()
             return json.loads(row["record_json"]) if row else None
 
     def list_calls(self) -> Dict[str, Dict[str, Any]]:
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             rows = conn.execute("SELECT call_id, record_json FROM calls").fetchall()
             return {row["call_id"]: json.loads(row["record_json"]) for row in rows}
 
-    def add_audit_log(self, run_id: Optional[str], event_type: str, message: str, payload: Optional[Dict[str, Any]] = None) -> None:
-        with get_db(self.db_path) as conn:
+    def add_audit_log(
+        self,
+        run_id: Optional[str],
+        event_type: str,
+        message: str,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute(
                 "INSERT INTO audit_logs (run_id, event_type, message, payload_json, created_at) VALUES (?, ?, ?, ?, ?)",
-                (run_id, event_type, message, json.dumps(payload or {}), self._now())
+                (run_id, event_type, message, json.dumps(payload or {}), self._now()),
             )
 
-    def get_audit_logs(self, run_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        with get_db(self.db_path) as conn:
+    def get_audit_logs(
+        self, run_id: Optional[str] = None, limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        with get_db(self.db_path, self.database_url) as conn:
             if run_id:
-                rows = conn.execute(
-                    "SELECT * FROM audit_logs WHERE run_id = ? ORDER BY id ASC", (run_id,)
-                ).fetchall()
+                if limit:
+                    rows = conn.execute(
+                        "SELECT * FROM audit_logs WHERE run_id = ? ORDER BY id DESC LIMIT ?",
+                        (run_id, limit),
+                    ).fetchall()
+                    rows = list(reversed(rows))
+                else:
+                    rows = conn.execute(
+                        "SELECT * FROM audit_logs WHERE run_id = ? ORDER BY id ASC",
+                        (run_id,),
+                    ).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM audit_logs ORDER BY id ASC").fetchall()
+                if limit:
+                    rows = conn.execute(
+                        "SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?", (limit,)
+                    ).fetchall()
+                    rows = list(reversed(rows))
+                else:
+                    rows = conn.execute(
+                        "SELECT * FROM audit_logs ORDER BY id ASC"
+                    ).fetchall()
             return [
                 {
                     "id": r["id"],
@@ -265,12 +324,21 @@ class StorageService:
 
     def save_fault_event(self, event: Dict[str, Any]) -> None:
         now = self._now()
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO fault_events (
+                INSERT INTO fault_events (
                     event_id, machine_id, machine_name, sensor_id, fault_code, severity, payload_json, run_id, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO UPDATE SET
+                    machine_id = excluded.machine_id,
+                    machine_name = excluded.machine_name,
+                    sensor_id = excluded.sensor_id,
+                    fault_code = excluded.fault_code,
+                    severity = excluded.severity,
+                    payload_json = excluded.payload_json,
+                    run_id = excluded.run_id,
+                    created_at = excluded.created_at
                 """,
                 (
                     event["event_id"],
@@ -282,19 +350,20 @@ class StorageService:
                     json.dumps(event),
                     event.get("run_id"),
                     event.get("created_at", now),
-                )
+                ),
             )
 
     def list_fault_events(self, limit: int = 20) -> List[Dict[str, Any]]:
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             rows = conn.execute(
-                "SELECT payload_json FROM fault_events ORDER BY created_at DESC LIMIT ?", (limit,)
+                "SELECT payload_json FROM fault_events ORDER BY created_at DESC LIMIT ?",
+                (limit,),
             ).fetchall()
             return [json.loads(r["payload_json"]) for r in rows]
 
     def clear(self) -> None:
         """Testing utility to clear state."""
-        with get_db(self.db_path) as conn:
+        with get_db(self.db_path, self.database_url) as conn:
             conn.execute("DELETE FROM fault_events")
             conn.execute("DELETE FROM idempotency")
             conn.execute("DELETE FROM audit_logs")

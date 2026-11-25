@@ -1,4 +1,5 @@
 """Unit tests for Phase 5: ACT (Human-gated action package, mobile approver, print dossier)."""
+
 import httpx
 import pytest
 from app.main import app
@@ -120,7 +121,9 @@ def test_action_package_approval_transition():
 @pytest.mark.asyncio
 async def test_action_package_api_endpoints():
     """Verify REST endpoints for action package, mobile approver view, and print dossier."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         req_payload = {
             "mode": "demo",
             "machine": "CNC Production Line 4",

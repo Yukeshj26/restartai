@@ -1,4 +1,5 @@
 """Centralized settings loaded from environment variables."""
+
 import os
 from pathlib import Path
 from dataclasses import dataclass
@@ -29,6 +30,7 @@ class Settings:
 
     # Database
     db_path: Path
+    database_url: str
 
     # LLM Settings
     llm_provider: str
@@ -45,23 +47,32 @@ class Settings:
     def live(self) -> bool:
         return self.call_e_mode == "live"
 
+    @property
+    def is_postgres(self) -> bool:
+        url = (self.database_url or "").strip().lower()
+        return url.startswith("postgresql://") or url.startswith("postgres://")
+
 
 def load_settings() -> Settings:
     mode = _val("CALL_E_MODE", "demo").lower()
     data_dir = ROOT_DIR / "data"
     data_dir.mkdir(exist_ok=True)
     db_file = Path(_val("DB_PATH", str(data_dir / "restartai.db")))
+    database_url = _val("DATABASE_URL", "")
 
     return Settings(
         call_e_mode=mode,
         calle_api_key=_val("CALLE_API_KEY"),
         calle_base_url=_val("CALLE_BASE_URL", "https://api.heycall-e.com").rstrip("/"),
         poll_interval_seconds=max(0.5, float(_val("CALLE_POLL_INTERVAL_SECONDS", "2"))),
-        poll_timeout_seconds=max(1, int(float(_val("CALLE_POLL_TIMEOUT_SECONDS", "300")))),
+        poll_timeout_seconds=max(
+            1, int(float(_val("CALLE_POLL_TIMEOUT_SECONDS", "300")))
+        ),
         app_host=_val("APP_HOST", "127.0.0.1"),
         app_port=int(_val("APP_PORT", "8000")),
         log_level=_val("LOG_LEVEL", "INFO"),
         db_path=db_file,
+        database_url=database_url,
         llm_provider=_val("LLM_PROVIDER", ""),
         gemini_api_key=_val("GEMINI_API_KEY"),
         gemini_model=_val("GEMINI_MODEL", "gemini-2.5-flash"),

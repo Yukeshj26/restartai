@@ -1,4 +1,5 @@
 """Asset Registry service managing machines, critical parts, specifications, and telemetry triggers."""
+
 import json
 import logging
 from pathlib import Path
@@ -23,7 +24,9 @@ class AssetService:
         try:
             return json.loads(self.assets_path.read_text(encoding="utf-8"))
         except Exception as exc:
-            logger.error("Failed to parse asset registry at %s: %s", self.assets_path, exc)
+            logger.error(
+                "Failed to parse asset registry at %s: %s", self.assets_path, exc
+            )
             return {"machines": []}
 
     def list_machines(self) -> List[Dict[str, Any]]:
@@ -34,7 +37,10 @@ class AssetService:
         """Finds a machine by ID or case-insensitive name match."""
         identifier_clean = identifier.strip().lower()
         for machine in self.list_machines():
-            if machine["id"].lower() == identifier_clean or machine["name"].lower() == identifier_clean:
+            if (
+                machine["id"].lower() == identifier_clean
+                or machine["name"].lower() == identifier_clean
+            ):
                 return machine
             # Partial name match
             if identifier_clean in machine["name"].lower():
@@ -54,14 +60,26 @@ class AssetService:
         part_clean = part_number.strip().lower()
         for machine in self.list_machines():
             for p in machine.get("parts", []):
-                if p["part_number"].lower() == part_clean or part_clean in p["part_number"].lower():
+                if (
+                    p["part_number"].lower() == part_clean
+                    or part_clean in p["part_number"].lower()
+                ):
                     return p.get("equivalents", [])
                 for eq in p.get("equivalents", []):
                     if eq["part_number"].lower() == part_clean:
                         # Return siblings + primary
                         return [
-                            {"brand": "Original OEM", "part_number": p["part_number"], "compatibility_confidence": 1.0, "notes": "OEM baseline"}
-                        ] + [e for e in p.get("equivalents", []) if e["part_number"].lower() != part_clean]
+                            {
+                                "brand": "Original OEM",
+                                "part_number": p["part_number"],
+                                "compatibility_confidence": 1.0,
+                                "notes": "OEM baseline",
+                            }
+                        ] + [
+                            e
+                            for e in p.get("equivalents", [])
+                            if e["part_number"].lower() != part_clean
+                        ]
         return []
 
     def build_recovery_request(
@@ -73,7 +91,10 @@ class AssetService:
         machine = self.get_machine(machine_id)
         if not machine:
             # Fallback to default CNC Line 4 parameters
-            logger.warning("Machine '%s' not found in registry. Using default golden parameters.", machine_id)
+            logger.warning(
+                "Machine '%s' not found in registry. Using default golden parameters.",
+                machine_id,
+            )
             machine = {
                 "name": "CNC Production Line 4",
                 "downtime_cost_per_hour": 5000.0,
@@ -108,10 +129,14 @@ class AssetService:
             "mode": "demo",
             "machine": machine["name"],
             "part_number": part.get("part_number", "SKF 6205-2RS"),
-            "part_description": part.get("part_description", "Deep-groove ball bearing"),
+            "part_description": part.get(
+                "part_description", "Deep-groove ball bearing"
+            ),
             "quantity": part.get("default_quantity", 20),
             "max_hours": float(machine.get("default_max_recovery_hours", 3.0)),
-            "downtime_cost_per_hour": float(machine.get("downtime_cost_per_hour", 5000.0)),
+            "downtime_cost_per_hour": float(
+                machine.get("downtime_cost_per_hour", 5000.0)
+            ),
             "compatibility_notes": part.get("compatibility_notes", ""),
             "available_technicians": int(machine.get("default_technicians", 3)),
             "suppliers": suppliers,

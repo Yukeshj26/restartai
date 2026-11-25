@@ -1,4 +1,5 @@
 """Integration tests for Asset Registry and Sensor Fault Webhook API."""
+
 import httpx
 import pytest
 from app.main import app
@@ -16,7 +17,9 @@ def clean_state():
 
 @pytest.mark.asyncio
 async def test_api_list_and_get_assets():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         # List
         res = await client.get("/api/assets")
         assert res.status_code == 200
@@ -38,7 +41,9 @@ async def test_api_list_and_get_assets():
 
 @pytest.mark.asyncio
 async def test_api_fault_webhook_dry_run():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         payload = {
             "machine_id": "cnc-line-4",
             "auto_start": False,
@@ -59,7 +64,9 @@ async def test_api_fault_webhook_dry_run():
 @pytest.mark.asyncio
 async def test_api_fault_webhook_auto_start_golden_scenario():
     """Verify webhook auto-start initiates a recovery run that resolves to the golden plan."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         payload = {
             "machine_id": "cnc-line-4",
             "auto_start": True,

@@ -58,14 +58,23 @@ def test_golden_scenario_deterministic_engine():
     assert p["feasible"] is True, "Golden scenario plan must be feasible"
 
     legs = [(l["supplier"], l["quantity"], l["unit_price"]) for l in p["legs"]]
-    assert legs == [("Supplier C", 8, 180.0), ("Supplier D", 12, 190.0)], (
-        f"Expected C(8)+D(12), got {legs}"
-    )
+    assert legs == [
+        ("Supplier C", 8, 180.0),
+        ("Supplier D", 12, 190.0),
+    ], f"Expected C(8)+D(12), got {legs}"
 
-    assert p["recovery_time_hours"] == 2.0, f"Expected 2.0h recovery, got {p['recovery_time_hours']}"
-    assert p["total_purchase_cost"] == 3720.0, f"Expected Rs 3720 purchase, got {p['total_purchase_cost']}"
-    assert p["downtime_exposure"] == 10000.0, f"Expected Rs 10000 downtime, got {p['downtime_exposure']}"
-    assert p["total_exposure"] == 13720.0, f"Expected Rs 13720 total exposure, got {p['total_exposure']}"
+    assert (
+        p["recovery_time_hours"] == 2.0
+    ), f"Expected 2.0h recovery, got {p['recovery_time_hours']}"
+    assert (
+        p["total_purchase_cost"] == 3720.0
+    ), f"Expected Rs 3720 purchase, got {p['total_purchase_cost']}"
+    assert (
+        p["downtime_exposure"] == 10000.0
+    ), f"Expected Rs 10000 downtime, got {p['downtime_exposure']}"
+    assert (
+        p["total_exposure"] == 13720.0
+    ), f"Expected Rs 13720 total exposure, got {p['total_exposure']}"
 
     # 2. Alternative Supplier B check
     offers_by_name = {o["supplier"]: o for o in replan_res["offers"]}
@@ -74,14 +83,20 @@ def test_golden_scenario_deterministic_engine():
     assert b_offer["quantity_available"] == 20
     assert b_offer["unit_price"] == 220.0
     b_purchase = 20 * 220.0
-    b_arrival_exposure = b_purchase + (b_offer["availability_hours"] * req.downtime_cost_per_hour)
-    assert b_arrival_exposure == 14400.0, f"Expected Supplier B baseline Rs 14400, got {b_arrival_exposure}"
+    b_arrival_exposure = b_purchase + (
+        b_offer["availability_hours"] * req.downtime_cost_per_hour
+    )
+    assert (
+        b_arrival_exposure == 14400.0
+    ), f"Expected Supplier B baseline Rs 14400, got {b_arrival_exposure}"
 
 
 @pytest.mark.asyncio
 async def test_golden_scenario_api_endpoint():
     """Verify golden scenario execution end-to-end via FastAPI HTTP endpoints."""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         payload = {
             "mode": "demo",
             "machine": "CNC Production Line 4",

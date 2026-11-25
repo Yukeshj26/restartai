@@ -1,4 +1,5 @@
 """API routes for RestartAI."""
+
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Query, Request
@@ -12,6 +13,7 @@ from ..services.storage_service import StorageService
 from ..services.asset_service import AssetService
 from ..services.action_service import ActionService
 from ..services.benchmark_service import BenchmarkService
+from ..core.logging import get_system_logs, clear_system_logs
 
 router = APIRouter(prefix="/api")
 
@@ -38,7 +40,9 @@ def list_assets():
 def get_asset(machine_id: str):
     machine = asset_service.get_machine(machine_id)
     if not machine:
-        return JSONResponse({"error": f"Machine '{machine_id}' not found."}, status_code=404)
+        return JSONResponse(
+            {"error": f"Machine '{machine_id}' not found."}, status_code=404
+        )
     return JSONResponse(machine)
 
 
@@ -52,15 +56,22 @@ def list_fault_events(limit: int = Query(default=20, ge=1, le=100)):
 async def trigger_fault_event(payload: FaultEventRequest):
     machine = asset_service.get_machine(payload.machine_id)
     if not machine:
-        return JSONResponse({"error": f"Machine '{payload.machine_id}' not found in asset registry."}, status_code=404)
+        return JSONResponse(
+            {"error": f"Machine '{payload.machine_id}' not found in asset registry."},
+            status_code=404,
+        )
 
     sensor = machine.get("sensor", {})
     event_id = f"evt-{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc).isoformat()
 
     telemetry = payload.telemetry_value or sensor.get("simulated_fault_value", 8.4)
-    fault_code = payload.fault_code or sensor.get("default_fault_code", "ERR-FAULT-DETECTED")
-    message = payload.message or sensor.get("default_fault_message", f"Abnormal condition on {machine['name']}")
+    fault_code = payload.fault_code or sensor.get(
+        "default_fault_code", "ERR-FAULT-DETECTED"
+    )
+    message = payload.message or sensor.get(
+        "default_fault_message", f"Abnormal condition on {machine['name']}"
+    )
 
     event = {
         "event_id": event_id,
@@ -94,7 +105,9 @@ async def trigger_fault_event(payload: FaultEventRequest):
     req = asset_service.build_recovery_request(machine["id"], overrides)
 
     if payload.auto_start:
-        use_live = (payload.mode == "live") if payload.mode else (calle_service.mode == "live")
+        use_live = (
+            (payload.mode == "live") if payload.mode else (calle_service.mode == "live")
+        )
         result = await engine.start_async(req) if use_live else engine.start(req)
         event["run_id"] = result["run_id"]
         storage_service.save_fault_event(event)
@@ -104,20 +117,24 @@ async def trigger_fault_event(payload: FaultEventRequest):
             f"Automated trigger from sensor {event['sensor_id']} on {machine['name']}: {fault_code}",
             event,
         )
-        return JSONResponse({
-            "success": True,
-            "event": event,
-            "incident": req.model_dump(),
-            "run_id": result["run_id"],
-            "recovery": result,
-        })
+        return JSONResponse(
+            {
+                "success": True,
+                "event": event,
+                "incident": req.model_dump(),
+                "run_id": result["run_id"],
+                "recovery": result,
+            }
+        )
     else:
         storage_service.save_fault_event(event)
-        return JSONResponse({
-            "success": True,
-            "event": event,
-            "incident": req.model_dump(),
-        })
+        return JSONResponse(
+            {
+                "success": True,
+                "event": event,
+                "incident": req.model_dump(),
+            }
+        )
 
 
 @router.get("/config")
@@ -144,7 +161,9 @@ def maintenance_intelligence(
 
 @router.post("/recovery/start")
 async def start_recovery(payload: RecoveryRequest):
-    use_live = (payload.mode == "live") if payload.mode else (calle_service.mode == "live")
+    use_live = (
+        (payload.mode == "live") if payload.mode else (calle_service.mode == "live")
+    )
     result = await engine.start_async(payload) if use_live else engine.start(payload)
     return JSONResponse(result)
 
@@ -153,7 +172,11 @@ async def start_recovery(payload: RecoveryRequest):
 async def replan(run_id: str):
     try:
         run_mode = engine.get_mode(run_id)
-        result = await engine.replan_async(run_id) if run_mode == "live" else engine.replan(run_id)
+        result = (
+            await engine.replan_async(run_id)
+            if run_mode == "live"
+            else engine.replan(run_id)
+        )
         return JSONResponse(result)
     except KeyError:
         return JSONResponse({"error": "Recovery run not found."}, status_code=404)
@@ -208,11 +231,16 @@ async def update_supplier_reliability(supplier_name: str, request: Request):
         body = await request.json()
         score = float(body.get("reliability_score", 0.90))
     except Exception:
-        return JSONResponse({"error": "Invalid request body. Expected JSON with 'reliability_score'."}, status_code=400)
+        return JSONResponse(
+            {"error": "Invalid request body. Expected JSON with 'reliability_score'."},
+            status_code=400,
+        )
 
     updated = engine.supplier_registry.update_supplier_reliability(supplier_name, score)
     if not updated:
-        return JSONResponse({"error": f"Failed to update supplier '{supplier_name}'."}, status_code=400)
+        return JSONResponse(
+            {"error": f"Failed to update supplier '{supplier_name}'."}, status_code=400
+        )
     return JSONResponse({"success": True, "supplier": updated})
 
 
@@ -278,7 +306,10 @@ async def recovery_recommendation(run_id: str):
     if not result:
         return JSONResponse({"error": "Recovery run not found."}, status_code=404)
     if not result.get("plans"):
-        return JSONResponse({"success": False, "error": "No recovery plan is available yet."}, status_code=400)
+        return JSONResponse(
+            {"success": False, "error": "No recovery plan is available yet."},
+            status_code=400,
+        )
     try:
         return JSONResponse(await llm_service.recommend(result))
     except LlmError as exc:
@@ -302,7 +333,10 @@ async def test_call(payload: TestCallRequest):
     # The generic connectivity call was the source of repeated "test" calls.
     # Keep the endpoint for backwards compatibility, but never place a call here.
     return JSONResponse(
-        {"success": False, "error": "Generic CALL-E test calls are disabled. Use /api/recovery/start for a real supplier recovery call."},
+        {
+            "success": False,
+            "error": "Generic CALL-E test calls are disabled. Use /api/recovery/start for a real supplier recovery call.",
+        },
         status_code=410,
     )
 
@@ -310,11 +344,61 @@ async def test_call(payload: TestCallRequest):
 @router.get("/calle/call/{call_id}")
 async def test_call_status(call_id: str):
     if call_id not in calle_service.calls:
-        return JSONResponse({"success": False, "error": "CALL-E call not found."}, status_code=404)
+        return JSONResponse(
+            {"success": False, "error": "CALL-E call not found."}, status_code=404
+        )
     try:
         return JSONResponse(await calle_service.get_call_status(call_id))
     except CallEError as exc:
         return JSONResponse(
-            {"success": False, "error": str(exc), "code": exc.code, "details": {"call_id": call_id}},
+            {
+                "success": False,
+                "error": str(exc),
+                "code": exc.code,
+                "details": {"call_id": call_id},
+            },
             status_code=502,
         )
+
+
+@router.get("/logs/system")
+def list_system_logs(
+    limit: int = Query(default=200, ge=1, le=1000),
+    level: str | None = Query(default=None),
+):
+    logs = get_system_logs(limit=limit, min_level=level)
+    return JSONResponse({"logs": logs, "count": len(logs)})
+
+
+@router.delete("/logs/system")
+def clear_system_log_buffer():
+    clear_system_logs()
+    return JSONResponse({"success": True, "message": "System log buffer cleared."})
+
+
+@router.get("/logs/audit")
+def list_audit_logs(
+    run_id: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+):
+    logs = storage_service.get_audit_logs(run_id=run_id, limit=limit)
+    return JSONResponse({"logs": logs, "count": len(logs)})
+
+
+@router.get("/logs")
+def consolidated_logs(
+    run_id: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    level: str | None = Query(default=None),
+):
+    audit_logs = storage_service.get_audit_logs(run_id=run_id, limit=limit)
+    sys_logs = get_system_logs(limit=limit, min_level=level)
+    return JSONResponse(
+        {
+            "success": True,
+            "audit_logs": audit_logs,
+            "system_logs": sys_logs,
+            "count_audit": len(audit_logs),
+            "count_system": len(sys_logs),
+        }
+    )

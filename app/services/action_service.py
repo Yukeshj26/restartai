@@ -11,6 +11,7 @@ Generates:
 Non-negotiable: Human approval is mandatory. All generated packages are drafts.
 Dispatch is disabled by default.
 """
+
 import json
 import logging
 from datetime import datetime, timezone
@@ -56,7 +57,9 @@ class ActionService:
                     supplier_name=supp_name,
                     supplier_phone=phone,
                     part_number=request.get("part_number", "SKF 6205-2RS"),
-                    part_description=request.get("part_description", "Deep-groove ball bearing"),
+                    part_description=request.get(
+                        "part_description", "Deep-groove ball bearing"
+                    ),
                     quantity=qty,
                     unit_price=price,
                     subtotal=subtotal,
@@ -64,7 +67,11 @@ class ActionService:
                     delivery_method=leg.get("delivery_method", "Emergency Courier"),
                     delivery_address="Gate 2 Receiving Depot, Sector 18 Manufacturing Plant",
                     payment_terms="Net 30 · Emergency Maintenance PO",
-                    status="AUTHORIZED DRAFT" if is_approved else "DRAFT - PENDING OPERATOR SIGN-OFF",
+                    status=(
+                        "AUTHORIZED DRAFT"
+                        if is_approved
+                        else "DRAFT - PENDING OPERATOR SIGN-OFF"
+                    ),
                     is_dispatched=False,
                 )
                 purchase_orders.append(po)
@@ -73,8 +80,14 @@ class ActionService:
         tech_lines = []
         if plan and plan.get("legs"):
             for l in plan["legs"]:
-                tech_lines.append(f"  • {l.get('supplier')}: {l.get('quantity')}u via {l.get('delivery_method')} (ETA: T+{l.get('arrival_hours')}h)")
-        legs_str = "\n".join(tech_lines) if tech_lines else "  • Awaiting logistics confirmation"
+                tech_lines.append(
+                    f"  • {l.get('supplier')}: {l.get('quantity')}u via {l.get('delivery_method')} (ETA: T+{l.get('arrival_hours')}h)"
+                )
+        legs_str = (
+            "\n".join(tech_lines)
+            if tech_lines
+            else "  • Awaiting logistics confirmation"
+        )
 
         tech_msg = (
             f"🚨 RESTARTAI EMERGENCY WORK ORDER · {request.get('machine', 'CNC LINE 4').upper()}\n"
@@ -119,7 +132,11 @@ class ActionService:
                 "machine_id": request.get("machine_id", "cnc-line-4"),
                 "machine_name": request.get("machine", "CNC Production Line 4"),
                 "priority": "P1-CRITICAL",
-                "lifecycle_state": "AUTHORIZED_PARTS_STAGED" if is_approved else "PENDING_MANAGEMENT_APPROVAL",
+                "lifecycle_state": (
+                    "AUTHORIZED_PARTS_STAGED"
+                    if is_approved
+                    else "PENDING_MANAGEMENT_APPROVAL"
+                ),
                 "created_at": self._now(),
             },
             "work_scope": {
@@ -127,9 +144,14 @@ class ActionService:
                 "failure_code": "ERR-VIB-SPINDLE-6205",
                 "failure_description": "Spindle bearing vibration threshold breach. Immediate seizure risk.",
                 "safety_protocol": "OSHA Lockout/Tagout (LOTO) Category 4 Isolation",
-                "estimated_labor_hours": (maintenance.get("installation_minutes", 30) or 30) / 60.0,
+                "estimated_labor_hours": (
+                    maintenance.get("installation_minutes", 30) or 30
+                )
+                / 60.0,
                 "required_crew_count": maintenance.get("required_technicians", 2) or 2,
-                "required_competency": maintenance.get("required_technician", "Mechanical Maintenance Technician"),
+                "required_competency": maintenance.get(
+                    "required_technician", "Mechanical Maintenance Technician"
+                ),
                 "assigned_shift": "Shift A (06:00 - 14:00 IST)",
                 "assigned_lead": "R. Sharma (#MEC-4412)",
             },
@@ -176,7 +198,11 @@ class ActionService:
         """Renders a self-contained, thumb-friendly mobile approver view."""
         run_id = run_state.get("run_id", "demo")
         req = run_state.get("request", {})
-        plan = run_state.get("recommended_plan") or run_state.get("best_expected_plan") or {}
+        plan = (
+            run_state.get("recommended_plan")
+            or run_state.get("best_expected_plan")
+            or {}
+        )
         is_approved = bool(run_state.get("approved", False))
         legs = plan.get("legs", [])
         hours = plan.get("recovery_time_hours", 2.0)
@@ -354,11 +380,17 @@ class ActionService:
 </body>
 </html>"""
 
-    def render_dossier_html(self, run_state: Dict[str, Any], audit_logs: List[Dict[str, Any]]) -> str:
+    def render_dossier_html(
+        self, run_state: Dict[str, Any], audit_logs: List[Dict[str, Any]]
+    ) -> str:
         """Renders an executive, print-ready industrial dossier report."""
         run_id = run_state.get("run_id", "unknown")
         req = run_state.get("request", {})
-        plan = run_state.get("recommended_plan") or run_state.get("best_expected_plan") or {}
+        plan = (
+            run_state.get("recommended_plan")
+            or run_state.get("best_expected_plan")
+            or {}
+        )
         offers = run_state.get("offers", [])
         sens = run_state.get("sensitivity", {})
         fallback = run_state.get("fallback_plan", {})

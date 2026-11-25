@@ -7,6 +7,7 @@ Invariants verified:
 4. Counterfactual explainer on the Golden Scenario produces exact financial exposure numbers.
 5. All public API endpoints return 200 with structured contract schemas.
 """
+
 import httpx
 import pytest
 
@@ -28,8 +29,10 @@ def clean_state():
 def test_synthetic_incident_generation():
     service = BenchmarkService(seed=42)
     incidents = service._synthetic_incidents
-    assert len(incidents) == 35, "Must generate exactly 35 synthetic benchmark incidents"
-    
+    assert (
+        len(incidents) == 35
+    ), "Must generate exactly 35 synthetic benchmark incidents"
+
     first = incidents[0]
     assert first["incident_id"] == "INC-SYNTH-001"
     assert first["machine"] == "CNC Production Line 4"
@@ -54,11 +57,19 @@ def test_benchmark_kpis_and_strategies():
     cheapest = kpis["cheapest_first"]
 
     # Invariant: RestartAI beats both heuristics on exposure and on-time reliability
-    assert restartai["on_time_recovery_rate"] > fastest["on_time_recovery_rate"], "RestartAI must achieve higher on-time rate than single-source"
-    assert fastest["on_time_recovery_rate"] > cheapest["on_time_recovery_rate"], "Fastest single must achieve higher on-time rate than cheapest"
+    assert (
+        restartai["on_time_recovery_rate"] > fastest["on_time_recovery_rate"]
+    ), "RestartAI must achieve higher on-time rate than single-source"
+    assert (
+        fastest["on_time_recovery_rate"] > cheapest["on_time_recovery_rate"]
+    ), "Fastest single must achieve higher on-time rate than cheapest"
 
-    assert restartai["avg_total_exposure"] < fastest["avg_total_exposure"], "RestartAI must have lower average exposure than fastest-single"
-    assert fastest["avg_total_exposure"] < cheapest["avg_total_exposure"], "Fastest single must have lower average exposure than naive cheapest"
+    assert (
+        restartai["avg_total_exposure"] < fastest["avg_total_exposure"]
+    ), "RestartAI must have lower average exposure than fastest-single"
+    assert (
+        fastest["avg_total_exposure"] < cheapest["avg_total_exposure"]
+    ), "Fastest single must have lower average exposure than naive cheapest"
 
     # Specific deterministic values for seed 42
     assert restartai["on_time_recovery_rate"] == 80.0
@@ -85,7 +96,7 @@ def test_counterfactual_explainer_golden_scenario():
             "recovery_time_hours": 2.0,
             "total_purchase_cost": 3720.0,
             "total_exposure": 13720.0,
-        }
+        },
     }
 
     cf = benchmark_service.get_counterfactual(mock_run_state)
@@ -122,7 +133,9 @@ def test_counterfactual_explainer_golden_scenario():
 
 @pytest.mark.asyncio
 async def test_api_benchmark_summary_endpoint():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.get("/api/benchmark/summary")
         assert response.status_code == 200
         data = response.json()
@@ -134,7 +147,9 @@ async def test_api_benchmark_summary_endpoint():
 
 @pytest.mark.asyncio
 async def test_api_benchmark_incidents_endpoint():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.get("/api/benchmark/incidents")
         assert response.status_code == 200
         data = response.json()
@@ -145,7 +160,9 @@ async def test_api_benchmark_incidents_endpoint():
 
 @pytest.mark.asyncio
 async def test_api_recovery_counterfactual_endpoint():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         # Start golden scenario run
         payload = {
             "mode": "demo",

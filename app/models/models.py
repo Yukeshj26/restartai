@@ -163,5 +163,3 @@ class ActionPackage(BaseModel):
     cmms_ticket: Dict[str, Any] = Field(default_factory=dict)
     dispatch_policy: str = "HUMAN_APPROVAL_MANDATORY"
     dispatch_enabled: bool = False
-
-

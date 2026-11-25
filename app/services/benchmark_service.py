@@ -7,6 +7,7 @@ Compares three industrial sourcing strategies across 35 synthetic incidents:
 
 LABEL: SYNTHETIC BENCHMARK. Strictly deterministic simulation for algorithmic comparison.
 """
+
 import random
 from typing import Any, Dict, List, Optional
 from ..models.models import RecoveryRequest, Supplier, Offer, PlanLeg, RecoveryPlan
@@ -22,18 +23,62 @@ class BenchmarkService:
         """Generates 35 seeded, reproducible synthetic production line breakdown incidents."""
         rng = random.Random(self.seed)
         machines = [
-            ("CNC Production Line 4", "SKF 6205-2RS", "Deep-groove ball bearing", 5000.0, 3.0),
-            ("Injection Molding Unit 02", "HEATER-BAND-400W", "Mica band heater element", 3500.0, 4.0),
-            ("Stamping Press P-12", "SEAL-KIT-HYD-80", "High-pressure cylinder seal kit", 8000.0, 2.5),
-            ("Packaging Conveyor C-1", "OPTICAL-SENSOR-M18", "Retroreflective photo-sensor", 2000.0, 5.0),
-            ("Hydraulic Cold Header H-3", "VALVE-DIR-PROP-24V", "Proportional hydraulic valve", 7500.0, 3.5),
-            ("Automated SMT Placement #1", "NOZZLE-VAC-SMT-04", "Vacuum pick-and-place nozzle", 10000.0, 2.0),
-            ("Extrusion Line 03", "THERMOCOUPLE-K-TYPE", "Thermocouple probe sensor", 3000.0, 4.5),
+            (
+                "CNC Production Line 4",
+                "SKF 6205-2RS",
+                "Deep-groove ball bearing",
+                5000.0,
+                3.0,
+            ),
+            (
+                "Injection Molding Unit 02",
+                "HEATER-BAND-400W",
+                "Mica band heater element",
+                3500.0,
+                4.0,
+            ),
+            (
+                "Stamping Press P-12",
+                "SEAL-KIT-HYD-80",
+                "High-pressure cylinder seal kit",
+                8000.0,
+                2.5,
+            ),
+            (
+                "Packaging Conveyor C-1",
+                "OPTICAL-SENSOR-M18",
+                "Retroreflective photo-sensor",
+                2000.0,
+                5.0,
+            ),
+            (
+                "Hydraulic Cold Header H-3",
+                "VALVE-DIR-PROP-24V",
+                "Proportional hydraulic valve",
+                7500.0,
+                3.5,
+            ),
+            (
+                "Automated SMT Placement #1",
+                "NOZZLE-VAC-SMT-04",
+                "Vacuum pick-and-place nozzle",
+                10000.0,
+                2.0,
+            ),
+            (
+                "Extrusion Line 03",
+                "THERMOCOUPLE-K-TYPE",
+                "Thermocouple probe sensor",
+                3000.0,
+                4.5,
+            ),
         ]
 
         incidents = []
         for i in range(35):
-            mach_name, part_num, part_desc, base_loss, base_deadline = machines[i % len(machines)]
+            mach_name, part_num, part_desc, base_loss, base_deadline = machines[
+                i % len(machines)
+            ]
             qty_needed = rng.choice([15, 20, 25, 30, 40])
             downtime_cost = base_loss * rng.choice([0.8, 1.0, 1.25, 1.5])
             max_hours = base_deadline * rng.choice([0.8, 1.0, 1.2])
@@ -83,17 +128,19 @@ class BenchmarkService:
                 },
             ]
 
-            incidents.append({
-                "incident_id": f"INC-SYNTH-{i+1:03d}",
-                "machine": mach_name,
-                "part_number": part_num,
-                "part_description": part_desc,
-                "quantity": qty_needed,
-                "max_hours": round(max_hours, 1),
-                "downtime_cost_per_hour": round(downtime_cost, 2),
-                "installation_minutes": install_mins,
-                "suppliers": suppliers,
-            })
+            incidents.append(
+                {
+                    "incident_id": f"INC-SYNTH-{i+1:03d}",
+                    "machine": mach_name,
+                    "part_number": part_num,
+                    "part_description": part_desc,
+                    "quantity": qty_needed,
+                    "max_hours": round(max_hours, 1),
+                    "downtime_cost_per_hour": round(downtime_cost, 2),
+                    "installation_minutes": install_mins,
+                    "suppliers": suppliers,
+                }
+            )
 
         return incidents
 
@@ -104,30 +151,41 @@ class BenchmarkService:
         """
         qty_needed = inc["quantity"]
         sorted_supps = sorted(inc["suppliers"], key=lambda s: s["unit_price"])
-        
+
         remaining = qty_needed
         selected_legs = []
         for s in sorted_supps:
             take = min(remaining, s["quantity"])
             if take > 0:
-                selected_legs.append({
-                    "supplier": s["name"],
-                    "quantity": take,
-                    "unit_price": s["unit_price"],
-                    "eta_hours": s["eta_hours"],
-                })
+                selected_legs.append(
+                    {
+                        "supplier": s["name"],
+                        "quantity": take,
+                        "unit_price": s["unit_price"],
+                        "eta_hours": s["eta_hours"],
+                    }
+                )
                 remaining -= take
             if remaining <= 0:
                 break
-                
+
         is_fulfilled = remaining == 0
         if not selected_legs:
-            return {"strategy": "cheapest_first", "feasible": False, "recovery_time_hours": 99.0, "purchase_cost": 0.0, "total_exposure": 999999.0, "on_time": False}
+            return {
+                "strategy": "cheapest_first",
+                "feasible": False,
+                "recovery_time_hours": 99.0,
+                "purchase_cost": 0.0,
+                "total_exposure": 999999.0,
+                "on_time": False,
+            }
 
         material_arrival = max(l["eta_hours"] for l in selected_legs)
         install_hours = inc["installation_minutes"] / 60.0
         recovery_time = round(material_arrival + install_hours, 2)
-        purchase_cost = round(sum(l["quantity"] * l["unit_price"] for l in selected_legs), 2)
+        purchase_cost = round(
+            sum(l["quantity"] * l["unit_price"] for l in selected_legs), 2
+        )
         downtime_exposure = round(recovery_time * inc["downtime_cost_per_hour"], 2)
         total_exposure = round(purchase_cost + downtime_exposure, 2)
         on_time = is_fulfilled and (recovery_time <= inc["max_hours"])
@@ -151,17 +209,27 @@ class BenchmarkService:
         """
         qty_needed = inc["quantity"]
         capable_single = [s for s in inc["suppliers"] if s["quantity"] >= qty_needed]
-        
+
         if not capable_single:
             # If no single supplier has 100%, picks supplier with most stock fastest (partial failure)
-            best_partial = sorted(inc["suppliers"], key=lambda s: (-s["quantity"], s["eta_hours"]))[0]
+            best_partial = sorted(
+                inc["suppliers"], key=lambda s: (-s["quantity"], s["eta_hours"])
+            )[0]
             install_hours = inc["installation_minutes"] / 60.0
             rec = round(best_partial["eta_hours"] + install_hours, 2)
             purchase = round(best_partial["quantity"] * best_partial["unit_price"], 2)
-            exp = round(purchase + rec * inc["downtime_cost_per_hour"] + 20000.0, 2)  # Shortfall penalty
+            exp = round(
+                purchase + rec * inc["downtime_cost_per_hour"] + 20000.0, 2
+            )  # Shortfall penalty
             return {
                 "strategy": "fastest_single",
-                "legs": [{"supplier": best_partial["name"], "quantity": best_partial["quantity"], "unit_price": best_partial["unit_price"]}],
+                "legs": [
+                    {
+                        "supplier": best_partial["name"],
+                        "quantity": best_partial["quantity"],
+                        "unit_price": best_partial["unit_price"],
+                    }
+                ],
                 "purchase_cost": purchase,
                 "recovery_time_hours": rec,
                 "total_exposure": exp,
@@ -181,7 +249,14 @@ class BenchmarkService:
 
         return {
             "strategy": "fastest_single",
-            "legs": [{"supplier": best["name"], "quantity": qty_needed, "unit_price": best["unit_price"], "eta_hours": best["eta_hours"]}],
+            "legs": [
+                {
+                    "supplier": best["name"],
+                    "quantity": qty_needed,
+                    "unit_price": best["unit_price"],
+                    "eta_hours": best["eta_hours"],
+                }
+            ],
             "purchase_cost": purchase_cost,
             "material_arrival_hours": material_arrival,
             "recovery_time_hours": recovery_time,
@@ -203,6 +278,7 @@ class BenchmarkService:
         max_h = inc["max_hours"]
 
         from itertools import combinations
+
         candidates = []
 
         # Evaluate 1-leg, 2-leg, 3-leg combinations
@@ -214,7 +290,14 @@ class BenchmarkService:
                 legs = []
                 for s in sorted(combo, key=lambda x: x["eta_hours"]):
                     take = min(rem, s["quantity"])
-                    legs.append({"supplier": s["name"], "quantity": take, "unit_price": s["unit_price"], "eta_hours": s["eta_hours"]})
+                    legs.append(
+                        {
+                            "supplier": s["name"],
+                            "quantity": take,
+                            "unit_price": s["unit_price"],
+                            "eta_hours": s["eta_hours"],
+                        }
+                    )
                     rem -= take
                     if rem == 0:
                         break
@@ -226,24 +309,28 @@ class BenchmarkService:
                 downtime_exp = round(rec_hours * downtime_rate, 2)
                 tot_exp = round(pur_cost + downtime_exp, 2)
                 on_time = rec_hours <= max_h
-                candidates.append({
-                    "strategy": "restartai",
-                    "legs": legs,
-                    "purchase_cost": pur_cost,
-                    "material_arrival_hours": mat_arrival,
-                    "recovery_time_hours": rec_hours,
-                    "downtime_exposure": downtime_exp,
-                    "total_exposure": tot_exp,
-                    "on_time": on_time,
-                    "feasible": on_time,
-                })
+                candidates.append(
+                    {
+                        "strategy": "restartai",
+                        "legs": legs,
+                        "purchase_cost": pur_cost,
+                        "material_arrival_hours": mat_arrival,
+                        "recovery_time_hours": rec_hours,
+                        "downtime_exposure": downtime_exp,
+                        "total_exposure": tot_exp,
+                        "on_time": on_time,
+                        "feasible": on_time,
+                    }
+                )
 
         if not candidates:
             # Fallback if no combo covers quota within deadline
             return BenchmarkService._simulate_fastest_single(inc)
 
         # Sort: feasible first, then lowest total exposure
-        best = sorted(candidates, key=lambda c: (not c["on_time"], c["total_exposure"]))[0]
+        best = sorted(
+            candidates, key=lambda c: (not c["on_time"], c["total_exposure"])
+        )[0]
         return best
 
     def run_benchmark(self) -> Dict[str, Any]:
@@ -275,17 +362,23 @@ class BenchmarkService:
             c3_rec_time += s3["recovery_time_hours"]
             c3_pur_cost += s3["purchase_cost"]
 
-            results.append({
-                "incident_id": inc["incident_id"],
-                "machine": inc["machine"],
-                "quantity": inc["quantity"],
-                "downtime_rate": inc["downtime_cost_per_hour"],
-                "cheapest_first": s1,
-                "fastest_single": s2,
-                "restartai": s3,
-                "savings_vs_cheapest": round(s1["total_exposure"] - s3["total_exposure"], 2),
-                "savings_vs_fastest": round(s2["total_exposure"] - s3["total_exposure"], 2),
-            })
+            results.append(
+                {
+                    "incident_id": inc["incident_id"],
+                    "machine": inc["machine"],
+                    "quantity": inc["quantity"],
+                    "downtime_rate": inc["downtime_cost_per_hour"],
+                    "cheapest_first": s1,
+                    "fastest_single": s2,
+                    "restartai": s3,
+                    "savings_vs_cheapest": round(
+                        s1["total_exposure"] - s3["total_exposure"], 2
+                    ),
+                    "savings_vs_fastest": round(
+                        s2["total_exposure"] - s3["total_exposure"], 2
+                    ),
+                }
+            )
 
         avg_s1_exp = round(c1_total_exp / count, 2)
         avg_s2_exp = round(c2_total_exp / count, 2)
@@ -327,11 +420,19 @@ class BenchmarkService:
             },
             "comparative_impact": {
                 "savings_vs_cheapest_avg": round(avg_s1_exp - avg_s3_exp, 2),
-                "savings_vs_cheapest_pct": round(((avg_s1_exp - avg_s3_exp) / avg_s1_exp) * 100, 1),
+                "savings_vs_cheapest_pct": round(
+                    ((avg_s1_exp - avg_s3_exp) / avg_s1_exp) * 100, 1
+                ),
                 "savings_vs_fastest_avg": round(avg_s2_exp - avg_s3_exp, 2),
-                "savings_vs_fastest_pct": round(((avg_s2_exp - avg_s3_exp) / avg_s2_exp) * 100, 1),
-                "on_time_gain_vs_cheapest_points": round(((c3_on_time - c1_on_time) / count) * 100, 1),
-                "on_time_gain_vs_fastest_points": round(((c3_on_time - c2_on_time) / count) * 100, 1),
+                "savings_vs_fastest_pct": round(
+                    ((avg_s2_exp - avg_s3_exp) / avg_s2_exp) * 100, 1
+                ),
+                "on_time_gain_vs_cheapest_points": round(
+                    ((c3_on_time - c1_on_time) / count) * 100, 1
+                ),
+                "on_time_gain_vs_fastest_points": round(
+                    ((c3_on_time - c2_on_time) / count) * 100, 1
+                ),
             },
             "detailed_incidents": results,
         }
@@ -348,7 +449,11 @@ class BenchmarkService:
         'What would have happened if we had picked the cheapest supplier vs fastest single supplier?'
         """
         req = run_state.get("request", {})
-        plan = run_state.get("recommended_plan") or run_state.get("best_expected_plan") or {}
+        plan = (
+            run_state.get("recommended_plan")
+            or run_state.get("best_expected_plan")
+            or {}
+        )
         rate = float(req.get("downtime_cost_per_hour", 5000.0))
         max_h = float(req.get("max_hours", 3.0))
 
@@ -396,7 +501,9 @@ class BenchmarkService:
                 "deadline_satisfied": False,
                 "deadline_breach_hours": c1_deadline_breach_hours,
                 "financial_penalty_vs_restartai": penalty_vs_cheapest,
-                "penalty_percentage": round((penalty_vs_cheapest / r_tot_exposure) * 100, 1),
+                "penalty_percentage": round(
+                    (penalty_vs_cheapest / r_tot_exposure) * 100, 1
+                ),
                 "verdict": (
                     f"DISASTROUS OUTCOME: Saved ₹720 on bearing unit prices, but suffered a 24.5h shutdown. "
                     f"Resulted in ₹{c1_total:,.0f} total economic loss (+₹{penalty_vs_cheapest:,.0f} worse than RestartAI) "
@@ -412,7 +519,9 @@ class BenchmarkService:
                 "arrival_baseline_exposure": c2_arrival_baseline,
                 "deadline_satisfied": True,
                 "financial_penalty_vs_restartai": penalty_vs_fastest,
-                "penalty_percentage": round((penalty_vs_fastest / r_tot_exposure) * 100, 1),
+                "penalty_percentage": round(
+                    (penalty_vs_fastest / r_tot_exposure) * 100, 1
+                ),
                 "verdict": (
                     f"SUBOPTIMAL SINGLE-SOURCE: Met the deadline at 2.5h, but paid higher unit price and extra 30m downtime. "
                     f"Resulted in ₹{c2_total:,.0f} total exposure (+₹{penalty_vs_fastest:,.0f} higher than RestartAI's multi-supplier split)."

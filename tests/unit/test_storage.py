@@ -1,4 +1,5 @@
 """Unit tests for SQLite persistence in StorageService."""
+
 import tempfile
 from pathlib import Path
 import pytest
@@ -149,3 +150,39 @@ def test_idempotency_persistence(temp_db):
     storage.set_idempotency("key-123", "run-456")
     assert storage.get_idempotency("key-123") == "run-456"
     assert storage.get_idempotency("non-existent") is None
+
+
+def test_postgres_url_detection():
+    from app.core.database import is_postgres_url
+
+    assert is_postgres_url("postgresql://user:pass@localhost:5432/restartai") is True
+    assert is_postgres_url("postgres://user:pass@localhost:5432/restartai") is True
+    assert is_postgres_url("POSTGRESQL://localhost/db") is True
+    assert is_postgres_url("sqlite:///data/restartai.db") is False
+    assert is_postgres_url("") is False
+    assert is_postgres_url(None) is False
+
+
+def test_database_connection_wrapper_placeholder_translation():
+    from app.core.database import DatabaseConnection
+
+    class DummyRawConn:
+        def __init__(self):
+            self.last_query = None
+            self.last_params = None
+
+        def cursor(self):
+            return self
+
+        def execute(self, q, p=()):
+            self.last_query = q
+            self.last_params = p
+            return self
+
+    raw = DummyRawConn()
+    pg_conn = DatabaseConnection(raw, is_postgres=True)
+    pg_conn.execute(
+        "SELECT * FROM runs WHERE run_id = ? AND stage = ?", ("r-1", "done")
+    )
+    assert raw.last_query == "SELECT * FROM runs WHERE run_id = %s AND stage = %s"
+    assert raw.last_params == ("r-1", "done")

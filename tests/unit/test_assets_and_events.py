@@ -1,4 +1,5 @@
 """Unit tests for Asset Registry and IoT Fault Event ingestion."""
+
 import pytest
 from app.services.asset_service import AssetService
 from app.models.models import RecoveryRequest
@@ -62,7 +63,9 @@ def test_asset_service_equivalents():
 
 def test_asset_service_overrides():
     service = AssetService()
-    req = service.build_recovery_request("cnc-line-4", overrides={"quantity": 50, "max_hours": 1.5})
+    req = service.build_recovery_request(
+        "cnc-line-4", overrides={"quantity": 50, "max_hours": 1.5}
+    )
     assert req.quantity == 50
     assert req.max_hours == 1.5
     assert req.machine == "CNC Production Line 4"

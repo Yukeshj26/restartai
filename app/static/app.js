@@ -121,12 +121,13 @@ function typeText(el, text, speed = 10) {
 /* ========================================================================= */
 /* MULTI-MODULE ROUTER & STEPPER                                             */
 /* ========================================================================= */
-const MODULES = ["#/incident", "#/calls", "#/plan", "#/approval"];
+const MODULES = ["#/incident", "#/calls", "#/plan", "#/approval", "#/logs"];
 
 function canAccessModule(hash) {
   if (hash === "#/incident") return true;
+  if (hash === "#/logs") return true;
   if (hash === "#/calls") return Boolean(runId || lastRunData);
-  if (hash === "#/plan") return Boolean(lastRunData && lastRunData.plans && lastRunData.plans.length);
+  if (hash === "#/plan") return Boolean(runId || (lastRunData && lastRunData.plans && lastRunData.plans.length));
   if (hash === "#/approval") return Boolean(lastRunData && lastRunData.plans && lastRunData.plans.length);
   return false;
 }
@@ -140,6 +141,7 @@ function updateStepperUI() {
   const step2 = $("step-btn-2");
   const step3 = $("step-btn-3");
   const step4 = $("step-btn-4");
+  const stepLogs = $("step-btn-logs");
 
   if (step1) {
     step1.className = "rail-btn step" + (currentModule === "#/incident" ? " active" : hasRun ? " completed" : "");
@@ -148,16 +150,73 @@ function updateStepperUI() {
     step2.className = "rail-btn step" + (currentModule === "#/calls" ? " active" : hasPlan ? " completed" : !hasRun ? " locked" : "");
   }
   if (step3) {
-    step3.className = "rail-btn step" + (currentModule === "#/plan" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
+    step3.className = "rail-btn step" + (currentModule === "#/plan" ? " active" : isApproved ? " completed" : !hasRun ? " locked" : "");
   }
   if (step4) {
     step4.className = "rail-btn step" + (currentModule === "#/approval" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
   }
+  if (stepLogs) {
+    stepLogs.className = "rail-btn" + (currentModule === "#/logs" ? " active" : "");
+  }
 }
 
-function navigate(hash, replaceState = false) {
+async function proceedToRecoveryPlan() {
+  clearTimeout(autoAdvanceTimer);
+  if (lastRunData && lastRunData.plans && lastRunData.plans.length) {
+    navigate("#/plan");
+    return;
+  }
+  
+  if (!runId && lastRunData?.run_id) {
+    runId = lastRunData.run_id;
+  }
+
+  if (!runId) {
+    navigate("#/plan");
+    return;
+  }
+
+  const btn = $("continueToPlanBtn");
+  const origText = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Synthesizing Plan...";
+  }
+
+  try {
+    const r = await fetch(`/api/recovery/${runId}/replan`, { method: "POST" });
+    const data = await readJsonResponse(r);
+    render(data);
+    currentModule = "#/plan";
+    history.pushState(null, "", "#/plan");
+    sessionStorage.setItem("restartai_current_module", "#/plan");
+    $("module-incident")?.classList.add("hidden");
+    $("module-calls")?.classList.add("hidden");
+    $("module-plan")?.classList.remove("hidden");
+    $("module-approval")?.classList.add("hidden");
+    $("module-logs")?.classList.add("hidden");
+    updateStepperUI();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (err) {
+    showError(`Failed to generate recovery plan: ${err.message}`);
+    navigate("#/plan");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origText || "Continue to Recovery Plan →";
+    }
+  }
+}
+
+async function navigate(hash, replaceState = false) {
   clearTimeout(autoAdvanceTimer);
   if (!MODULES.includes(hash)) hash = "#/incident";
+
+  // If navigating to Plan, but plans haven't been computed yet, automatically synthesize them
+  if (hash === "#/plan" && runId && (!lastRunData || !lastRunData.plans || !lastRunData.plans.length)) {
+    await proceedToRecoveryPlan();
+    return;
+  }
   
   if (!canAccessModule(hash)) {
     if (hash !== "#/incident") {
@@ -179,6 +238,13 @@ function navigate(hash, replaceState = false) {
   $("module-calls")?.classList.toggle("hidden", hash !== "#/calls");
   $("module-plan")?.classList.toggle("hidden", hash !== "#/plan");
   $("module-approval")?.classList.toggle("hidden", hash !== "#/approval");
+  $("module-logs")?.classList.toggle("hidden", hash !== "#/logs");
+
+  if (hash === "#/logs") {
+    onLogsModuleActive();
+  } else {
+    onLogsModuleInactive();
+  }
 
   updateStepperUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -211,6 +277,9 @@ async function onAssetSelected(machineId) {
 
     scheduleMaintenanceIntelligence();
     logActivity(`asset_selected machine="${machine.name}" part="${part.part_number}"`);
+
+    // Dynamically update masthead headline
+    $("executiveHeadline") && ($("executiveHeadline").textContent = `${machine.name} is down.`);
   } catch (err) {
     showError(`Failed to load asset specs: ${err.message}`);
   }
@@ -434,6 +503,8 @@ async function startRecovery() {
   $("incDeadline").textContent = `${payload.max_hours}h max`;
   startCostTicker(payload.downtime_cost_per_hour);
 
+  $("executiveHeadline") && ($("executiveHeadline").textContent = `${payload.machine} is down.`);
+
   logActivity(`recovery_start machine="${payload.machine}" part="${payload.part_number}" qty=${payload.quantity} mode=${payload.mode}`);
 
   // Navigate immediately to Module 2 to show live dialing
@@ -478,19 +549,25 @@ function handleShortfallMoment(data, targetQty) {
 
   if (!shortfallCard) return;
 
-  // Check if Supplier C provided partial stock (8 of 20)
-  if (supplierC && supplierC.quantity_available === 8 && targetQty === 20) {
+  targetQty = Number(targetQty || data.request?.quantity || 20);
+  const availC = supplierC ? Number(supplierC.quantity_available || 0) : 0;
+  const isPartial = supplierC && availC > 0 && availC < targetQty;
+
+  if (isPartial) {
+    const shortfallQty = targetQty - availC;
+    const pctShortfall = Math.round((shortfallQty / targetQty) * 100);
     shortfallCard.classList.remove("hidden", "resolved");
-    $("shortfallTitle").textContent = "Supplier C has 8 of 20 units (fastest pickup: 30m). Shortfall: 12 units.";
-    $("shortfallDesc").textContent = "Supplier C cannot fulfill the entire order, but has the fastest arrival. Rather than waiting 24h for single-source delivery, RestartAI is triggering an adaptive replan to call Supplier D for the remaining 12 units.";
+    $("shortfallTitle").textContent = `Supplier C has ${availC} of ${targetQty} units (fastest pickup: 30m). Shortfall: ${shortfallQty} units.`;
+    $("shortfallDesc").textContent = `Supplier C cannot fulfill the entire order, but has the fastest arrival. Rather than waiting 24h for single-source delivery, RestartAI is triggering an adaptive replan to call Supplier D for the remaining ${shortfallQty} units.`;
     $("shortfallActionLabel").textContent = "Triggering adaptive call to Supplier D...";
-    $("shortfallSpinner").classList.remove("hidden");
-    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "🚨 SHORTFALL: 12 Units (60%)";
+    $("shortfallSpinner")?.classList.remove("hidden");
+    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = `🚨 SHORTFALL: ${shortfallQty} Units (${pctShortfall}%)`;
     if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "Calling Supplier D...";
 
+    const currentMode = $("mode")?.value || $("regMode")?.value || "demo";
     // In DEMO mode, auto-advance replan after 1.5s to show autonomous agent reaction
-    if ($("mode").value === "demo") {
-      logActivity("shortfall_detected supplier=Supplier_C available=8 needed=20 shortfall=12");
+    if (currentMode === "demo") {
+      logActivity(`shortfall_detected supplier=Supplier_C available=${availC} needed=${targetQty} shortfall=${shortfallQty}`);
       autoAdvanceTimer = setTimeout(() => {
         replan(true);
       }, 1600);
@@ -508,8 +585,8 @@ async function replan(isAutoShortfall = false) {
 
   const shortfallCard = $("shortfallBanner");
   if (shortfallCard && isAutoShortfall) {
-    $("shortfallActionLabel").textContent = "Supplier D responding with 12 units...";
-    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "Supplier D: 12 Units (60%)";
+    $("shortfallActionLabel").textContent = "Supplier D responding with remaining stock...";
+    if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "Supplier D: Connecting...";
     if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "Connecting to depot...";
   }
 
@@ -524,14 +601,20 @@ async function replan(isAutoShortfall = false) {
 
     // Mark Shortfall as Resolved
     if (shortfallCard && data.recommended_plan) {
+      const targetQty = Number(data.request?.quantity || 20);
+      const legC = (data.recommended_plan.legs || []).find(l => l.supplier === "Supplier C");
+      const legD = (data.recommended_plan.legs || []).find(l => l.supplier === "Supplier D");
+      const qtyC = legC ? legC.quantity : (targetQty === 20 ? 8 : Math.floor(targetQty * 0.4));
+      const qtyD = legD ? legD.quantity : (targetQty - qtyC);
+      const pctD = Math.round((qtyD / targetQty) * 100);
       shortfallCard.classList.remove("hidden");
       shortfallCard.classList.add("resolved");
-      $("shortfallTitle").textContent = "✓ Shortfall Resolved: Full 20 units secured across Supplier C (8) + Supplier D (12)!";
-      $("shortfallDesc").textContent = "Fastest recovery verified: Material arrival in 1.5h + 30m install = 2.0h total downtime. Total economic exposure: ₹13,720 (vs ₹14,400+ for single-supplier alternatives).";
+      $("shortfallTitle").textContent = `✓ Shortfall Resolved: Full ${targetQty} units secured across Supplier C (${qtyC}) + Supplier D (${qtyD})!`;
+      $("shortfallDesc").textContent = `Fastest recovery verified: Material arrival in ${data.recommended_plan.recovery_time_hours}h. Total economic exposure: ${money(data.recommended_plan.total_exposure)}.`;
       $("shortfallSpinner")?.classList.add("hidden");
       $("shortfallActionLabel").textContent = "✓ Optimal Split Plan Generated";
-      if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = "✓ Supplier D: 12 Units (60%)";
-      if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = "ETA: 1.5h · Confirmed";
+      if ($("shortfallLegDLabel")) $("shortfallLegDLabel").textContent = `✓ Supplier D: ${qtyD} Units (${pctD}%)`;
+      if ($("shortfallLegDEta")) $("shortfallLegDEta").textContent = `ETA: ${legD?.arrival_hours || 1.5}h · Confirmed`;
     }
 
     // Enable Continue to Plan button
@@ -614,16 +697,6 @@ async function approve() {
     }
     const approveBtn = $("mod4ApproveBtn");
     if (approveBtn) approveBtn.disabled = true;
-    const sideApproveBtn = $("sideApproveBtn");
-    if (sideApproveBtn) {
-      sideApproveBtn.disabled = true;
-      sideApproveBtn.textContent = "✓ Plan Authorized";
-    }
-    const sideStatus = $("sideApprovalStatusText");
-    if (sideStatus) {
-      sideStatus.textContent = "✓ AUTHORIZED";
-      sideStatus.className = "status-text mono approved";
-    }
 
     logActivity("plan_approved by=human_operator purchase=not_automated status=authorized");
     loadActionPackage(runId);
@@ -638,11 +711,6 @@ function rejectPlan() {
   const notice = $("approvalNotice");
   if (notice) {
     notice.innerHTML = "<b class=\"bad\">✕ Plan Rejected.</b> Switched to manual supplier dispatch. Audit logged.";
-  }
-  const sideStatus = $("sideApprovalStatusText");
-  if (sideStatus) {
-    sideStatus.textContent = "✕ REJECTED";
-    sideStatus.className = "status-text mono rejected";
   }
 }
 
@@ -861,16 +929,7 @@ function resetDemo() {
   $("approvalStatusDisplay") && ($("approvalStatusDisplay").textContent = "PENDING SIGN-OFF", $("approvalStatusDisplay").classList.remove("approved"));
   $("approvalNotice") && ($("approvalNotice").innerHTML = "⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.");
   $("mod4ApproveBtn") && ($("mod4ApproveBtn").disabled = false);
-  $("sideApproveBtn") && ($("sideApproveBtn").disabled = false, $("sideApproveBtn").textContent = "✓ Authorize & Approve Plan");
-  $("sideApprovalStatusText") && ($("sideApprovalStatusText").textContent = "AWAITING OPERATOR APPROVAL", $("sideApprovalStatusText").className = "status-text mono");
-  $("sideLossRate") && ($("sideLossRate").textContent = "₹5,000/hr");
-  $("sideRecoveryTime") && ($("sideRecoveryTime").textContent = "2.0 hrs");
-  $("sideTotalExposure") && ($("sideTotalExposure").textContent = "₹13,720");
-  $("sidePurchaseCost") && ($("sidePurchaseCost").textContent = "₹3,720");
-  $("sideDowntimeLoss") && ($("sideDowntimeLoss").textContent = "₹10,000");
-  $("sideMaxDeadline") && ($("sideMaxDeadline").textContent = "3.0 hrs max");
   $("executiveHeadline") && ($("executiveHeadline").textContent = "CNC Production Line 4 is down.");
-  $("briefDecisionHeadline") && ($("briefDecisionHeadline").textContent = "Recommended: split source with Supplier C + Supplier D");
 
   clearInterval(costTicker);
   $("incCost") && ($("incCost").textContent = "₹0");
@@ -1127,6 +1186,12 @@ function render(data) {
     ).join("");
   }
 
+  // Enable Continue to Plan button once supplier offers have been received
+  const contBtn = $("continueToPlanBtn");
+  if (contBtn && offers.length) {
+    contBtn.disabled = false;
+  }
+
   // Render Technician Hint
   if (data.maintenance) {
     const technician = data.technician_intelligence || data.maintenance.technician_intelligence || {
@@ -1208,34 +1273,18 @@ function render(data) {
     $("recapExposure") && ($("recapExposure").textContent = money(p.total_exposure));
     if (runId) loadActionPackage(runId);
 
-    // Update Right-Side Executive Impact Column
-    $("sideLossRate") && ($("sideLossRate").textContent = `${money(data.request?.downtime_cost_per_hour || 5000)}/hr`);
-    $("sideRecoveryTime") && ($("sideRecoveryTime").textContent = `${p.recovery_time_hours} hrs`);
-    $("sideTotalExposure") && ($("sideTotalExposure").textContent = money(p.total_exposure));
-    $("sidePurchaseCost") && ($("sidePurchaseCost").textContent = money(p.total_purchase_cost));
-    $("sideDowntimeLoss") && ($("sideDowntimeLoss").textContent = money(p.downtime_exposure));
-    $("sideMaxDeadline") && ($("sideMaxDeadline").textContent = `${data.request?.max_hours || 3.0} hrs max`);
-    $("executiveHeadline") && ($("executiveHeadline").textContent = `${data.request?.machine || 'CNC Production Line 4'} is down.`);
-    if ($("briefDecisionHeadline") && (p.legs || []).length) {
-      $("briefDecisionHeadline").textContent = `Recommended: split source with ${(p.legs || []).map(l => l.supplier).join(" + ")}`;
-    }
+    $("executiveHeadline") && ($("executiveHeadline").textContent = `${data.request?.machine || 'Machinery'} is down.`);
 
     // Update approval buttons
     const appBtn = $("approveBtn");
     if (appBtn) appBtn.disabled = !p.feasible || data.approved;
     const mod4AppBtn = $("mod4ApproveBtn");
     if (mod4AppBtn) mod4AppBtn.disabled = !p.feasible || data.approved;
-    const sideAppBtn = $("sideApproveBtn");
-    if (sideAppBtn) {
-      sideAppBtn.disabled = !p.feasible || data.approved;
-      if (data.approved) sideAppBtn.textContent = "✓ Plan Authorized";
-    }
 
     if (data.approved) {
       $("approvalBadge") && ($("approvalBadge").textContent = "PLAN APPROVED BY OPERATOR", $("approvalBadge").classList.add("active"));
       $("approvalStatusDisplay") && ($("approvalStatusDisplay").textContent = "✓ AUTHORIZED", $("approvalStatusDisplay").classList.add("approved"));
       $("approvalNotice") && ($("approvalNotice").innerHTML = "<b class=\"good\">✓ Plan Authorized by Operator.</b> Logistics dispatch confirmed.");
-      $("sideApprovalStatusText") && ($("sideApprovalStatusText").textContent = "✓ AUTHORIZED", $("sideApprovalStatusText").className = "status-text mono approved");
     }
 
     updateStepperUI();
@@ -1484,10 +1533,6 @@ async function loadBenchmarkSummary() {
   }
 }
 
-// Dummy backward-compatible helpers
-function maskPhone(p) { return p; }
-function pollTestCall() {}
-function diagnosticHtml() { return ""; }
 
 /* ========================================================================= */
 /* PHASE 7: FLEET BOARD & DEMO STORY WALKTHROUGH                            */
@@ -1655,6 +1700,10 @@ window.addEventListener("keydown", (e) => {
     if (canAccessModule("#/plan")) navigate("#/plan");
   } else if (e.key === "4") {
     if (canAccessModule("#/approval")) navigate("#/approval");
+  } else if (e.key === "5" || e.key === "l" || e.key === "L") {
+    navigate("#/logs");
+  } else if (e.key === "n" || e.key === "N") {
+    openRegisterIncidentModal();
   } else if (e.key === "d" || e.key === "D") {
     runFullDemoStory();
   } else if (e.key === "r" || e.key === "R") {
@@ -1667,11 +1716,8 @@ window.addEventListener("keydown", (e) => {
     $("chatWidget")?.classList.add("collapsed");
   } else if (e.key === " " || e.key === "Spacebar") {
     if (currentModule === "#/calls") {
-      const btn = $("continueToPlanBtn");
-      if (btn && !btn.disabled) {
-        e.preventDefault();
-        navigate("#/plan");
-      }
+      e.preventDefault();
+      proceedToRecoveryPlan();
     } else if (currentModule === "#/plan") {
       const btn = $("continueToApprovalBtn");
       if (btn) {
@@ -1681,6 +1727,503 @@ window.addEventListener("keydown", (e) => {
     }
   }
 });
+
+/* ========================================================================= */
+/* MODULE 5: SYSTEM & AUDIT LOGS CONTROLLER                                  */
+/* ========================================================================= */
+let logsTab = "all";
+let logsAutoRefreshTimer = null;
+let cachedAuditLogs = [];
+let cachedSystemLogs = [];
+let logsLoading = false;
+
+function onLogsModuleActive() {
+  fetchLogs();
+  const autoCheckbox = $("logsAutoRefresh");
+  if (autoCheckbox && autoCheckbox.checked) {
+    startLogsAutoRefresh();
+  }
+}
+
+function onLogsModuleInactive() {
+  stopLogsAutoRefresh();
+}
+
+function startLogsAutoRefresh() {
+  stopLogsAutoRefresh();
+  logsAutoRefreshTimer = setInterval(() => {
+    if (currentModule === "#/logs" && !logsLoading) {
+      fetchLogs(false);
+    }
+  }, 3000);
+}
+
+function stopLogsAutoRefresh() {
+  if (logsAutoRefreshTimer) {
+    clearInterval(logsAutoRefreshTimer);
+    logsAutoRefreshTimer = null;
+  }
+}
+
+function toggleLogsAutoRefresh() {
+  const checkbox = $("logsAutoRefresh");
+  if (checkbox && checkbox.checked) {
+    startLogsAutoRefresh();
+  } else {
+    stopLogsAutoRefresh();
+  }
+}
+
+async function fetchLogs(manual = false) {
+  if (logsLoading) return;
+  logsLoading = true;
+  
+  const statusText = $("logsLiveStatusText");
+  if (manual && statusText) {
+    statusText.textContent = "REFRESHING LOGS...";
+  }
+
+  try {
+    const res = await fetch("/api/logs?limit=300");
+    const data = await readJsonResponse(res);
+
+    cachedAuditLogs = Array.isArray(data.audit_logs) ? data.audit_logs : [];
+    cachedSystemLogs = Array.isArray(data.system_logs) ? data.system_logs : [];
+
+    updateLogsCounters();
+    updateRunIdFilterOptions();
+    renderLogsList();
+
+    const updatedEl = $("logsLastUpdated");
+    if (updatedEl) {
+      updatedEl.textContent = `Updated: ${new Date().toLocaleTimeString("en-IN", { hour12: false })}`;
+    }
+    if (statusText) {
+      statusText.textContent = "LIVE BUFFER ACTIVE";
+    }
+  } catch (err) {
+    console.error("Failed to load logs:", err);
+    if (statusText) {
+      statusText.textContent = "CONNECTION ERROR";
+    }
+  } finally {
+    logsLoading = false;
+  }
+}
+
+function updateLogsCounters() {
+  const countAll = cachedAuditLogs.length + cachedSystemLogs.length;
+  const countAudit = cachedAuditLogs.length;
+  const countSystem = cachedSystemLogs.length;
+  const countErrors = cachedSystemLogs.filter(l => l.level === "ERROR" || l.level === "CRITICAL").length +
+    cachedAuditLogs.filter(l => (l.event_type || "").includes("error") || (l.event_type || "").includes("fail")).length;
+
+  if ($("countLogsAll")) $("countLogsAll").textContent = countAll;
+  if ($("countLogsAudit")) $("countLogsAudit").textContent = countAudit;
+  if ($("countLogsSystem")) $("countLogsSystem").textContent = countSystem;
+  if ($("countLogsErrors")) $("countLogsErrors").textContent = countErrors;
+}
+
+function updateRunIdFilterOptions() {
+  const select = $("logsRunIdFilter");
+  if (!select) return;
+
+  const currentVal = select.value;
+  const runIds = new Set();
+  if (runId) runIds.add(runId);
+  cachedAuditLogs.forEach(l => {
+    if (l.run_id) runIds.add(l.run_id);
+  });
+
+  const existingOptions = Array.from(select.options).map(o => o.value);
+  const distinctIds = Array.from(runIds);
+
+  distinctIds.forEach(id => {
+    if (!existingOptions.includes(id)) {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = `Run ${id}${id === runId ? " (Active)" : ""}`;
+      select.appendChild(opt);
+    }
+  });
+
+  if (currentVal && existingOptions.includes(currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function switchLogsTab(tab) {
+  logsTab = tab;
+  ["all", "audit", "system", "errors"].forEach(t => {
+    const btn = $(`tabLogs${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if (btn) btn.classList.toggle("active", t === tab);
+  });
+  renderLogsList();
+}
+
+function clearLogsSearch() {
+  const input = $("logsSearchInput");
+  if (input) input.value = "";
+  $("logsSearchClearBtn")?.classList.add("hidden");
+  filterLogsDisplay();
+}
+
+function filterLogsDisplay() {
+  const searchVal = ($("logsSearchInput")?.value || "").trim();
+  $("logsSearchClearBtn")?.classList.toggle("hidden", !searchVal);
+  renderLogsList();
+}
+
+function getUnifiedLogsList() {
+  // Normalize audit logs
+  const auditEntries = cachedAuditLogs.map(l => ({
+    id: `audit-${l.id}`,
+    source: "audit",
+    timestamp: l.created_at,
+    time_str: l.created_at ? new Date(l.created_at).toLocaleTimeString("en-IN", { hour12: false }) : "—",
+    level: (l.event_type || "").includes("error") || (l.event_type || "").includes("fail") ? "ERROR" : "AUDIT",
+    logger: "sqlite.audit_logs",
+    eventType: l.event_type || "audit_event",
+    run_id: l.run_id || null,
+    message: l.message || "Audit event",
+    payload: l.payload || null,
+    rawTime: l.created_at ? new Date(l.created_at).getTime() : 0,
+  }));
+
+  // Normalize system logs
+  const systemEntries = cachedSystemLogs.map((l, idx) => ({
+    id: `sys-${idx}`,
+    source: "system",
+    timestamp: l.timestamp,
+    time_str: l.time_str || (l.timestamp ? new Date(l.timestamp).toLocaleTimeString("en-IN", { hour12: false }) : "—"),
+    level: l.level || "INFO",
+    logger: l.logger || "restartai",
+    eventType: null,
+    run_id: null,
+    message: l.message || "",
+    payload: null,
+    rawTime: l.timestamp ? new Date(l.timestamp).getTime() : 0,
+  }));
+
+  let combined = [];
+  if (logsTab === "all") {
+    combined = [...auditEntries, ...systemEntries];
+  } else if (logsTab === "audit") {
+    combined = auditEntries;
+  } else if (logsTab === "system") {
+    combined = systemEntries;
+  } else if (logsTab === "errors") {
+    combined = [...auditEntries, ...systemEntries].filter(l => l.level === "ERROR" || l.level === "WARNING" || l.level === "CRITICAL");
+  }
+
+  // Sort descending by time (most recent on top)
+  combined.sort((a, b) => b.rawTime - a.rawTime);
+
+  // Apply filters
+  const keyword = ($("logsSearchInput")?.value || "").toLowerCase().trim();
+  const levelFilter = ($("logsLevelFilter")?.value || "").toUpperCase().trim();
+  const runFilter = ($("logsRunIdFilter")?.value || "").trim();
+
+  return combined.filter(item => {
+    if (keyword) {
+      const matchText = `${item.message} ${item.logger} ${item.level} ${item.eventType || ""} ${item.run_id || ""}`.toLowerCase();
+      if (!matchText.includes(keyword)) return false;
+    }
+    if (levelFilter) {
+      if (levelFilter === "ERROR" && item.level !== "ERROR" && item.level !== "CRITICAL") return false;
+      if (levelFilter === "WARNING" && !["WARNING", "ERROR", "CRITICAL"].includes(item.level)) return false;
+      if (levelFilter === "INFO" && !["INFO", "WARNING", "ERROR", "CRITICAL"].includes(item.level)) return false;
+    }
+    if (runFilter) {
+      if (item.run_id !== runFilter) return false;
+    }
+    return true;
+  });
+}
+
+function renderLogsList() {
+  const container = $("logsContainer");
+  if (!container) return;
+
+  const records = getUnifiedLogsList();
+  const metaEl = $("logsStreamMeta");
+  if (metaEl) {
+    metaEl.textContent = `Showing ${records.length} log event${records.length === 1 ? "" : "s"}`;
+  }
+
+  if (records.length === 0) {
+    container.innerHTML = `
+      <div class="logs-empty-state">
+        <span class="empty-icon">🔍</span>
+        <p>No log records match your current filter criteria.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = records.map(r => {
+    const isError = r.level === "ERROR" || r.level === "CRITICAL";
+    const isWarn = r.level === "WARNING";
+    const isAudit = r.source === "audit";
+    const badgeClass = isAudit ? "badge-audit" : isError ? "badge-error" : isWarn ? "badge-warn" : r.level === "DEBUG" ? "badge-debug" : "badge-info";
+    const rowLevelClass = isAudit ? "source-audit" : isError ? "level-error" : isWarn ? "level-warning" : r.level === "DEBUG" ? "level-debug" : "level-info";
+    const hasPayload = r.payload && Object.keys(r.payload).length > 0;
+    const payloadId = `payload-${r.id}`;
+
+    return `
+      <div class="log-entry-row ${rowLevelClass}">
+        <div class="log-entry-meta">
+          <div class="log-meta-left">
+            <span class="log-badge ${badgeClass}">${esc(r.level)}</span>
+            <span class="log-timestamp mono">${esc(r.time_str)}</span>
+            <span class="log-component mono">${esc(r.logger)}</span>
+            ${r.eventType ? `<span class="log-run-pill mono">${esc(r.eventType)}</span>` : ""}
+          </div>
+          <div class="log-meta-right">
+            ${r.run_id ? `<span class="log-run-pill mono" title="Associated Recovery Run ID">run: ${esc(r.run_id)}</span>` : ""}
+          </div>
+        </div>
+
+        <div class="log-entry-msg ${r.source === "system" ? "mono" : ""}">${esc(r.message)}</div>
+
+        ${hasPayload ? `
+          <button type="button" class="log-payload-toggle" onclick="toggleLogPayload('${payloadId}')">
+            ▸ Expand Event Payload JSON
+          </button>
+          <pre id="${payloadId}" class="log-payload-box hidden">${esc(JSON.stringify(r.payload, null, 2))}</pre>
+        ` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+function toggleLogPayload(id) {
+  const el = $(id);
+  if (!el) return;
+  const isHidden = el.classList.contains("hidden");
+  el.classList.toggle("hidden");
+  const btn = el.previousElementSibling;
+  if (btn && btn.classList.contains("log-payload-toggle")) {
+    btn.textContent = isHidden ? "▾ Collapse Event Payload JSON" : "▸ Expand Event Payload JSON";
+  }
+}
+
+function copyLogsToClipboard() {
+  const records = getUnifiedLogsList();
+  if (!records.length) {
+    showError("No logs to copy.");
+    return;
+  }
+  const lines = records.map(r => `[${r.time_str}] [${r.level}] [${r.logger}] ${r.message}${r.payload ? "\n  Payload: " + JSON.stringify(r.payload) : ""}`);
+  navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    logActivity("logs_copied_to_clipboard count=" + records.length);
+    showError("Logs copied to clipboard!", "Copied " + records.length + " lines of log output.");
+  }).catch(() => {
+    showError("Failed to copy logs to clipboard.");
+  });
+}
+
+function downloadLogsExport() {
+  const records = getUnifiedLogsList();
+  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `restartai-logs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function clearServerLogs() {
+  if (!confirm("Clear in-memory server console logs? (SQLite audit records will remain preserved)")) return;
+  try {
+    const res = await fetch("/api/logs/system", { method: "DELETE" });
+    if (res.ok) {
+      cachedSystemLogs = [];
+      updateLogsCounters();
+      renderLogsList();
+      logActivity("system_logs_cleared");
+    }
+  } catch (err) {
+    showError("Failed to clear server logs: " + err.message);
+  }
+}
+
+/* ========================================================================= */
+/* NEW INCIDENT REGISTRATION CONTROLLER                                      */
+/* ========================================================================= */
+function openRegisterIncidentModal() {
+  $("registerIncidentModal")?.classList.remove("hidden");
+  if (!$("regMachine")?.value) {
+    loadIncidentPreset("press-p-12");
+  }
+}
+
+function closeRegisterIncidentModal(e) {
+  if (e && e.target && e.target.classList.contains("modal-card")) return;
+  $("registerIncidentModal")?.classList.add("hidden");
+}
+
+function loadIncidentPreset(presetId) {
+  if (presetId === "press-p-12") {
+    if ($("regMachine")) $("regMachine").value = "Stamping Press P-12";
+    if ($("regPart")) $("regPart").value = "SEAL-KIT-HYD-80";
+    if ($("regDesc")) $("regDesc").value = "High-pressure hydraulic cylinder seal kit";
+    if ($("regQty")) $("regQty").value = 15;
+    if ($("regMaxHours")) $("regMaxHours").value = 3.5;
+    if ($("regDowntime")) $("regDowntime").value = 8000;
+    if ($("regTechs")) $("regTechs").value = 2;
+    if ($("regCompat")) $("regCompat").value = "80mm piston, nitrile rubber or viton";
+    if ($("regPhone1")) $("regPhone1").value = "+919876543211";
+    if ($("regPhone2")) $("regPhone2").value = "+919876543212";
+    if ($("regPhone3")) $("regPhone3").value = "+919876543213";
+    if ($("regPhone4")) $("regPhone4").value = "+919876543214";
+    syncPresetToMainForm("Stamping Press P-12", "SEAL-KIT-HYD-80", "High-pressure hydraulic cylinder seal kit", 15, 3.5, 8000, 2, "80mm piston, nitrile rubber or viton");
+  } else if (presetId === "cnc-line-4") {
+    if ($("regMachine")) $("regMachine").value = "CNC Production Line 4";
+    if ($("regPart")) $("regPart").value = "SKF 6205-2RS";
+    if ($("regDesc")) $("regDesc").value = "Deep-groove ball bearing";
+    if ($("regQty")) $("regQty").value = 20;
+    if ($("regMaxHours")) $("regMaxHours").value = 3;
+    if ($("regDowntime")) $("regDowntime").value = 5000;
+    if ($("regTechs")) $("regTechs").value = 3;
+    if ($("regCompat")) $("regCompat").value = "6205-2RS, 25mm bore, 52mm OD, 15mm width. Equivalent brands require confirmation.";
+    if ($("regPhone1")) $("regPhone1").value = "+919876543211";
+    if ($("regPhone2")) $("regPhone2").value = "+919876543212";
+    if ($("regPhone3")) $("regPhone3").value = "+919876543213";
+    if ($("regPhone4")) $("regPhone4").value = "+919876543214";
+    syncPresetToMainForm("CNC Production Line 4", "SKF 6205-2RS", "Deep-groove ball bearing", 20, 3, 5000, 3, "6205-2RS, 25mm bore, 52mm OD, 15mm width.");
+  } else if (presetId === "inj-mold-02") {
+    if ($("regMachine")) $("regMachine").value = "Injection Molding Machine 02";
+    if ($("regPart")) $("regPart").value = "HEATER-BAND-400W";
+    if ($("regDesc")) $("regDesc").value = "Ceramic band heater 60x50mm 230V 400W";
+    if ($("regQty")) $("regQty").value = 4;
+    if ($("regMaxHours")) $("regMaxHours").value = 4.0;
+    if ($("regDowntime")) $("regDowntime").value = 3500;
+    if ($("regTechs")) $("regTechs").value = 2;
+    if ($("regCompat")) $("regCompat").value = "60mm ID band heater with thermocouple clearance";
+    syncPresetToMainForm("Injection Molding Machine 02", "HEATER-BAND-400W", "Ceramic band heater 60x50mm 230V 400W", 4, 4.0, 3500, 2, "60mm ID band heater with thermocouple clearance");
+  } else if (presetId === "blank") {
+    if ($("regMachine")) $("regMachine").value = "";
+    if ($("regPart")) $("regPart").value = "";
+    if ($("regDesc")) $("regDesc").value = "";
+    if ($("regQty")) $("regQty").value = 1;
+    if ($("regMaxHours")) $("regMaxHours").value = 3.0;
+    if ($("regDowntime")) $("regDowntime").value = 5000;
+    if ($("regTechs")) $("regTechs").value = 2;
+    if ($("regCompat")) $("regCompat").value = "";
+  }
+}
+
+function syncPresetToMainForm(m, p, d, q, h, c, t, comp) {
+  if ($("machine")) $("machine").value = m;
+  if ($("part")) $("part").value = p;
+  if ($("desc")) $("desc").value = d;
+  if ($("qty")) $("qty").value = q;
+  if ($("maxHours")) $("maxHours").value = h;
+  if ($("downtime")) $("downtime").value = c;
+  if ($("techs")) $("techs").value = t;
+  if ($("compat")) $("compat").value = comp;
+  scheduleMaintenanceIntelligence();
+
+  // Dynamically update masthead headline
+  $("executiveHeadline") && ($("executiveHeadline").textContent = `${m || 'Machinery'} is down.`);
+}
+
+async function handleNewIncidentSubmit(e) {
+  if (e) e.preventDefault();
+  clearError();
+
+  const machine = $("regMachine").value.trim();
+  const partNumber = $("regPart").value.trim();
+  const partDesc = $("regDesc").value.trim();
+  const qty = Number($("regQty").value);
+  const maxHours = Number($("regMaxHours").value);
+  const downtime = Number($("regDowntime").value);
+  const techs = Number($("regTechs").value);
+  const compat = $("regCompat").value.trim();
+  const mode = $("regMode").value;
+
+  if (!machine || !partNumber || !partDesc || !qty || !maxHours) {
+    showError("Please fill out all required incident fields.");
+    return;
+  }
+
+  // Sync to inline form fields
+  syncPresetToMainForm(machine, partNumber, partDesc, qty, maxHours, downtime, techs, compat);
+  if ($("mode")) {
+    $("mode").value = mode;
+    updateModeUI();
+  }
+
+  const suppliers = [
+    { name: "Supplier A", phone: $("regPhone1")?.value.trim() || "+919876543211", region: "IN", locale: "en-IN" },
+    { name: "Supplier B", phone: $("regPhone2")?.value.trim() || "+919876543212", region: "IN", locale: "en-IN" },
+    { name: "Supplier C", phone: $("regPhone3")?.value.trim() || "+919876543213", region: "IN", locale: "en-IN" },
+    { name: "Supplier D", phone: $("regPhone4")?.value.trim() || "+919876543214", region: "IN", locale: "en-IN" }
+  ].filter(s => s.phone);
+
+  const payload = {
+    mode: mode,
+    machine: machine,
+    part_number: partNumber,
+    part_description: partDesc,
+    quantity: qty,
+    max_hours: maxHours,
+    downtime_cost_per_hour: downtime,
+    compatibility_notes: compat,
+    available_technicians: techs,
+    suppliers: suppliers,
+    chaos_scenario: $("chaosScenario") ? $("chaosScenario").value : "standard",
+    live_confirmed: mode === "live",
+    idempotency_key: `${Date.now()}-${crypto.randomUUID()}`
+  };
+
+  closeRegisterIncidentModal();
+
+  // Set visual status and start cost ticker
+  $("stage").textContent = "CALLING";
+  $("stage").classList.add("active");
+  $("startBtn") && ($("startBtn").disabled = true);
+  $("incidentHeader")?.classList.remove("hidden");
+  $("incMachine") && ($("incMachine").textContent = payload.machine);
+  $("incPart") && ($("incPart").textContent = `${payload.part_number} × ${payload.quantity}`);
+  $("incQty") && ($("incQty").textContent = `${payload.quantity} units`);
+  $("incDeadline") && ($("incDeadline").textContent = `${payload.max_hours}h max`);
+  startCostTicker(payload.downtime_cost_per_hour);
+
+  logActivity(`incident_registered machine="${payload.machine}" part="${payload.part_number}" qty=${payload.quantity} loss=₹${payload.downtime_cost_per_hour}/h`);
+
+  // Navigate immediately to Module 2 to show live dialing and progress
+  navigate("#/calls");
+
+  try {
+    const res = await fetch("/api/recovery/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await readJsonResponse(res);
+    runId = data.run_id;
+    sessionStorage.setItem("restartai_run_id", runId);
+
+    render(data);
+
+    chatHistory = [];
+    if ($("chatMessages")) {
+      $("chatMessages").innerHTML = "";
+      appendChatMessage("assistant", `Recovery initialized for ${payload.machine}. Ask me anything about suppliers, offers, or recovery plans.`);
+    }
+    logActivity(`recovery_active run_id=${runId} offers=${(data.offers || []).length}`);
+
+    // Trigger shortfall detection and adaptive replanning for the registered incident
+    handleShortfallMoment(data, payload.quantity);
+  } catch (err) {
+    showError(`Recovery dispatch failed: ${err.message}`);
+  }
+}
 
 // Initialize app
 loadConfig();
