@@ -3,1162 +3,1381 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RestartAI — Emergency Production Recovery Agent</title>
+  <title>RESTARTAI — Emergency Production Recovery Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=20261125-multi-module">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20261125-executive-brief">
 </head>
-<body>
+<body class="light-theme">
 
-<!-- Persistent Top Bar -->
-<header class="app-header">
-  <div class="header-left">
-    <div class="brand" onclick="navigate('#/incident')">
-      <span class="brand-dot"></span>
-      RESTART<span class="brand-accent">AI</span>
-      <span class="brand-sub">RECOVERY AGENT</span>
-    </div>
-  </div>
-
-  <!-- 4-Module Stepper -->
-  <nav class="stepper" aria-label="Incident Recovery Stages">
-    <button class="step active" id="step-btn-1" onclick="navigate('#/incident')">
-      <span class="step-num">01</span>
-      <span class="step-content">
-        <span class="step-tag">SETUP</span>
-        <span class="step-title">Incident</span>
-      </span>
-    </button>
-    <div class="step-divider"></div>
-    <button class="step locked" id="step-btn-2" onclick="navigate('#/calls')">
-      <span class="step-num">02</span>
-      <span class="step-content">
-        <span class="step-tag">FEED</span>
-        <span class="step-title">Supplier Calls</span>
-      </span>
-    </button>
-    <div class="step-divider"></div>
-    <button class="step locked" id="step-btn-3" onclick="navigate('#/plan')">
-      <span class="step-num">03</span>
-      <span class="step-content">
-        <span class="step-tag">ENGINE</span>
-        <span class="step-title">Recovery Plan</span>
-      </span>
-    </button>
-    <div class="step-divider"></div>
-    <button class="step locked" id="step-btn-4" onclick="navigate('#/approval')">
-      <span class="step-num">04</span>
-      <span class="step-content">
-        <span class="step-tag">DECISION</span>
-        <span class="step-title">Approval & Report</span>
-      </span>
-    </button>
-  </nav>
-
-  <div class="header-right">
-    <button id="btnRunFullDemo" class="btn-run-full-demo" onclick="runFullDemoStory()" title="Walk the complete 3-minute hackathon demo story (Key: D)">
-      <span class="btn-icon">▶</span> Run Full Demo
-    </button>
-    <button id="btnTopResetDemo" class="btn-top-reset" onclick="resetDemo()" title="Reset to clean baseline (Key: R)">
-      ↺ Reset
-    </button>
-    <button id="btnHelpShortcuts" class="btn-shortcuts-toggle" onclick="openKeyboardModal()" title="Keyboard shortcuts (Key: ?)">
-      ⌨
-    </button>
-    <div id="clock" class="clock">00:00:00</div>
-    <div id="modePill" class="pill">MODE · DEMO</div>
-  </div>
-</header>
-
-<!-- Hackathon Walkthrough Banner (Active when 'Run Full Demo' is triggered) -->
-<aside id="walkthroughBanner" class="walkthrough-banner hidden" aria-live="polite">
-  <div class="walkthrough-content">
-    <span class="walkthrough-pulse-dot"></span>
-    <span class="walkthrough-tag">3-MIN LIVE DEMO</span>
-    <span id="walkthroughStageText" class="walkthrough-text">Initializing autonomous recovery story...</span>
-  </div>
-  <div class="walkthrough-controls">
-    <span id="walkthroughTimer" class="walkthrough-timer mono">00:00</span>
-    <button type="button" id="btnPauseDemo" class="btn-walkthrough-ctrl" onclick="togglePauseDemoWalkthrough()">⏸ Pause</button>
-    <button type="button" id="btnNextDemoStage" class="btn-walkthrough-ctrl" onclick="advanceDemoWalkthroughStage()">⏭ Skip Ahead</button>
-    <button type="button" class="btn-walkthrough-ctrl close" onclick="stopDemoWalkthrough()">✕ Exit Walkthrough</button>
-  </div>
-</aside>
-
-<main class="app-main">
-
-  <!-- Persistent Incident Summary Bar (Visible when run active) -->
-  <section id="incidentHeader" class="incident-header hidden">
-    <div class="incident-field">
-      <small>MACHINE</small>
-      <b id="incMachine">—</b>
-    </div>
-    <div class="incident-field">
-      <small>FAILED PART</small>
-      <b id="incPart">—</b>
-    </div>
-    <div class="incident-field">
-      <small>QUANTITY NEEDED</small>
-      <b id="incQty">—</b>
-    </div>
-    <div class="incident-field">
-      <small>MAX DEADLINE</small>
-      <b id="incDeadline">—</b>
-    </div>
-    <div class="incident-field cost">
-      <small>ACCRUED DOWNTIME COST</small>
-      <b id="incCost">₹0</b>
-    </div>
-  </section>
-
-  <!-- Global Notification / Friendly Alerts Container -->
-  <div id="error" class="error-toast hidden" role="alert">
-    <div class="toast-icon">ℹ️</div>
-    <div class="toast-body">
-      <div id="errorMessage" class="toast-msg"></div>
-      <div id="errorTip" class="toast-tip"></div>
-    </div>
-    <button type="button" class="toast-close" onclick="clearError()" aria-label="Dismiss alert">✕</button>
-  </div>
+<div class="app-shell">
 
   <!-- ========================================================================= -->
-  <!-- MODULE 1: INCIDENT SETUP (#/incident)                                     -->
+  <!-- SLIM LEFT NAVIGATION RAIL                                                 -->
   <!-- ========================================================================= -->
-  <section id="module-incident" class="module-view active">
-    
-    <div class="module-hero">
-      <div class="eyebrow">EMERGENCY PRODUCTION RECOVERY · 3-MINUTE RESPONSE</div>
-      <h1>When the production line stops,<br>the recovery agent starts dialing.</h1>
-      <p class="sub">RestartAI autonomously interrogates suppliers, identifies partial stock shortfalls, matches technician capacity, and builds the lowest economic exposure plan before human sign-off.</p>
+  <aside class="nav-rail" aria-label="Main Navigation">
+    <div class="rail-top">
+      <div class="brand" onclick="navigate('#/incident')" title="RESTARTAI Autonomous Recovery Platform">
+        <span class="brand-dot"></span>
+        <div class="brand-text-block">
+          <span class="brand-title">RESTART<span class="brand-accent">AI</span></span>
+          <span class="brand-sub">EXECUTIVE BRIEF</span>
+        </div>
+      </div>
+
+      <nav class="rail-nav" aria-label="Incident Stages">
+        <button class="rail-btn active" id="step-btn-1" onclick="navigate('#/incident')">
+          <span class="rail-btn-icon">⚡</span>
+          <span class="rail-btn-label">Incident</span>
+          <span class="rail-btn-step">01</span>
+        </button>
+
+        <button class="rail-btn locked" id="step-btn-2" onclick="navigate('#/calls')">
+          <span class="rail-btn-icon">📞</span>
+          <span class="rail-btn-label">Calls</span>
+          <span class="rail-btn-step">02</span>
+        </button>
+
+        <button class="rail-btn locked" id="step-btn-3" onclick="navigate('#/plan')">
+          <span class="rail-btn-icon">📋</span>
+          <span class="rail-btn-label">Plan</span>
+          <span class="rail-btn-step">03</span>
+        </button>
+
+        <button class="rail-btn locked" id="step-btn-4" onclick="navigate('#/approval')">
+          <span class="rail-btn-icon">🛡️</span>
+          <span class="rail-btn-label">Approval</span>
+          <span class="rail-btn-step">04</span>
+        </button>
+      </nav>
     </div>
 
-    <!-- Live Industrial Incident Board & Monitored Fleet Grid -->
-    <div id="liveIncidentBoard" class="panel fleet-board-panel">
-      <div class="fleet-board-header">
-        <div>
-          <div class="eyebrow" style="color:var(--orange);">ACTIVE FACTORY FLEET · TELEMETRY MONITOR</div>
-          <h2>Live Production Incident & Equipment Fleet Board</h2>
-          <p class="hint">Continuous vibration, acoustic, and thermal telemetry across factory production nodes. Click any asset below to inspect specs or trigger recovery.</p>
-        </div>
-        <div class="fleet-status-pill">
-          <span class="status-pulse red"></span>
-          <span>1 ACTIVE FAILURE · 4 NODES NORMAL</span>
-        </div>
-      </div>
-
-      <div class="fleet-grid">
-        <!-- Node 1: CNC Line 4 (Critical Failure - Golden Scenario) -->
-        <div id="fleetCardCnc" class="fleet-node critical active-incident" onclick="selectFleetAsset('cnc-line-4')">
-          <div class="node-head">
-            <span class="node-badge danger">🚨 CRITICAL FAULT</span>
-            <span class="node-loss mono">₹5,000/hr</span>
-          </div>
-          <h4>CNC Production Line 4</h4>
-          <div class="node-meta">Spindle Axis Z · <b>SKF 6205-2RS</b> (20 units)</div>
-          <div class="node-telemetry danger">
-            <span>RMS Vibration: <b>8.4 mm/s</b> (Limit 7.0)</span>
-            <span class="node-state-pill">RECOVERY ACTIVE</span>
-          </div>
-        </div>
-
-        <!-- Node 2: Stamping Press P-12 -->
-        <div id="fleetCardPress" class="fleet-node normal" onclick="selectFleetAsset('press-p-12')">
-          <div class="node-head">
-            <span class="node-badge success">🟢 NORMAL</span>
-            <span class="node-loss mono">₹8,000/hr</span>
-          </div>
-          <h4>Stamping Press P-12</h4>
-          <div class="node-meta">Main Ram · <b>SEAL-KIT-HYD-80</b> (15 units)</div>
-          <div class="node-telemetry success">
-            <span>Hydraulic Pressure: <b>195 bar</b> (Nominal)</span>
-            <span class="node-state-pill">OPERATIONAL</span>
-          </div>
-        </div>
-
-        <!-- Node 3: Injection Molding Unit 02 -->
-        <div id="fleetCardInj" class="fleet-node normal" onclick="selectFleetAsset('inj-mold-02')">
-          <div class="node-head">
-            <span class="node-badge success">🟢 NORMAL</span>
-            <span class="node-loss mono">₹3,500/hr</span>
-          </div>
-          <h4>Injection Molding Unit 02</h4>
-          <div class="node-meta">Barrel Zone 3 · <b>HEATER-BAND-400W</b> (25 units)</div>
-          <div class="node-telemetry success">
-            <span>Zone Temp: <b>240°C</b> (Within Band)</span>
-            <span class="node-state-pill">OPERATIONAL</span>
-          </div>
-        </div>
-
-        <!-- Node 4: Automated SMT Placement #1 -->
-        <div id="fleetCardSmt" class="fleet-node normal" onclick="selectFleetAsset('smt-place-1')">
-          <div class="node-head">
-            <span class="node-badge success">🟢 NORMAL</span>
-            <span class="node-loss mono">₹10,000/hr</span>
-          </div>
-          <h4>Automated SMT Line #1</h4>
-          <div class="node-meta">Head 4 · <b>NOZZLE-VAC-SMT-04</b> (30 units)</div>
-          <div class="node-telemetry success">
-            <span>Vacuum Level: <b>92 kPa</b> (Nominal)</span>
-            <span class="node-state-pill">OPERATIONAL</span>
-          </div>
-        </div>
-
-        <!-- Node 5: Packaging Conveyor C-1 -->
-        <div id="fleetCardPack" class="fleet-node warning" onclick="selectFleetAsset('pack-conv-1')">
-          <div class="node-head">
-            <span class="node-badge warning">🟡 ADVISORY</span>
-            <span class="node-loss mono">₹2,000/hr</span>
-          </div>
-          <h4>Packaging Conveyor C-1</h4>
-          <div class="node-meta">Drive End · <b>OPTICAL-SENSOR-M18</b> (40 units)</div>
-          <div class="node-telemetry warning">
-            <span>Sensor Alignment: <b>Drift Detected</b></span>
-            <span class="node-state-pill">MONITORING</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Fleet Impact Summary Strip -->
-      <div class="fleet-impact-strip">
-        <div class="fleet-impact-item">
-          <small>AVERAGE RECOVERY TIME</small>
-          <b class="mono success">2.34 hrs</b>
-          <span>vs 22.6h standard freight</span>
-        </div>
-        <div class="fleet-impact-item">
-          <small>ON-TIME RECOVERY RATE</small>
-          <b class="mono success">80.0%</b>
-          <span>vs 0.0% cheapest heuristic</span>
-        </div>
-        <div class="fleet-impact-item">
-          <small>AVERAGE LOSS PREVENTED</small>
-          <b class="mono success">₹124,692 / inc</b>
-          <span>86.5% financial exposure cut</span>
-        </div>
-        <div class="fleet-impact-item">
-          <small>GOVERNANCE DISPATCH</small>
-          <b class="mono highlight">100% Gated</b>
-          <span>Operator must authorize POs</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mode Selector & Live Warning -->
-    <div class="panel mode-panel">
-      <div class="row-head">
-        <div>
-          <h2>00 · Operational Call Mode</h2>
-          <p class="hint">DEMO executes simulated deterministic calls offline. LIVE CALL-E initiates actual phone calls to authorized numbers.</p>
-        </div>
-        <select id="mode" class="mode-select" onchange="updateModeUI()">
-          <option value="demo" selected>DEMO (Simulated Supplier Responses)</option>
-          <option value="live">LIVE CALL-E (Real Telephony)</option>
-        </select>
-      </div>
-
-      <div id="liveBox" class="live-box hidden">
-        <div class="live-warning-head">
-          <span class="warning-icon">⚠️</span>
-          <b>LIVE TELEPHONY MODE ACTIVE</b>
-        </div>
-        <p>This action will initiate automated phone calls to the numbers configured below. Use valid E.164 numbers and only numbers you are authorized to contact.</p>
-        <label class="checkline">
-          <input type="checkbox" id="liveConfirm">
-          <span>I understand and explicitly authorize live outbound supplier calls.</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- SENSE TRIGGER: Asset Registry & Industrial IoT Feed -->
-    <div class="panel sense-panel">
-      <div class="panel-head-with-action">
-        <div>
-          <div class="sense-badge"><span class="pulse-dot"></span> STAGE 1: SENSE · EVENT-DRIVEN IOT TELEMETRY FEED</div>
-          <h2>Factory Asset Registry & Sensor Anomaly Ingestion</h2>
-          <p class="hint">Simulate real-time SCADA/PLC sensor trip. Automatically binds machine asset specifications, downtime exposure rates, and critical spare parts with zero manual data entry.</p>
-        </div>
-        <div class="sense-actions">
-          <button type="button" id="btnSimulateFault" class="btn-fault-trigger" onclick="simulateMachineFault(false)">
-            <span class="btn-icon">⚡</span> Simulate Machine Fault
-          </button>
-          <button type="button" id="btnSimulateAndRecover" class="btn-fault-recover" onclick="simulateMachineFault(true)">
-            <span>⚡ Ingest & Auto-Recover</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="asset-selector-row">
-        <label for="assetSelector">Target Asset (Connected Telemetry Node):</label>
-        <select id="assetSelector" class="asset-select" onchange="onAssetSelected(this.value)">
-          <option value="cnc-line-4" selected>CNC Production Line 4 · CRITICAL (₹5,000/hr) · SKF 6205-2RS [Golden Scenario]</option>
-          <option value="inj-mold-02">Injection Molding Machine 02 · HIGH (₹3,500/hr) · HEATER-BAND-400W</option>
-          <option value="press-p-12">Stamping Press P-12 · CRITICAL (₹8,000/hr) · SEAL-KIT-HYD-80</option>
-          <option value="pack-conv-1">Packaging Line Conveyor C-1 · MEDIUM (₹2,000/hr) · OPTICAL-SENSOR-M18</option>
-        </select>
-      </div>
-
-      <!-- Real-Time Incoming Fault Alert Banner -->
-      <div id="incomingFaultBanner" class="fault-banner hidden">
-        <div class="fault-banner-header">
-          <span class="fault-badge-pulse">🚨 INCOMING TELEMETRY ANOMALY DETECTED</span>
-          <span id="faultEventTime" class="fault-time mono"></span>
-        </div>
-        <div class="fault-banner-body">
-          <div class="fault-metric-grid">
-            <div class="fault-box">
-              <span class="lbl">MACHINE</span>
-              <span id="faultMachineName" class="val mono">CNC Production Line 4</span>
-            </div>
-            <div class="fault-box">
-              <span class="lbl">SENSOR ID</span>
-              <span id="faultSensorId" class="val mono">VIB-ACCEL-04</span>
-            </div>
-            <div class="fault-box">
-              <span class="lbl">TELEMETRY READING</span>
-              <span id="faultTelemetry" class="val mono warn">8.4 mm/s RMS (Limit: 7.0)</span>
-            </div>
-            <div class="fault-box">
-              <span class="lbl">FAULT CODE</span>
-              <span id="faultCode" class="val mono red">ERR-VIB-SPINDLE-6205</span>
-            </div>
-          </div>
-          <div id="faultDescription" class="fault-msg">
-            Vibration anomaly detected on spindle bearing axis Z (RMS 8.4 mm/s > 7.0 mm/s limit). Immediate seizure risk.
-          </div>
-          <div class="fault-footer-strip">
-            <span>Resolved Replacement Part: <strong id="faultPartResolved" class="mono">SKF 6205-2RS (Deep-groove ball bearing)</strong></span>
-            <span>Asset Criticality: <strong id="faultCriticality" class="mono">CRITICAL (₹5,000/hr)</strong></span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Incident Form -->
-    <div class="panel incident-form-panel">
-      <div class="panel-head-with-action">
-        <div>
-          <h2>01 · Production Incident & Knowledge-Base Parameters</h2>
-          <p class="hint">Define machine stoppage, required component, downtime loss rate, and factory constraints.</p>
-        </div>
-        <button type="button" class="btn-demo-scenario" onclick="loadDemoScenario()">
-          <span class="btn-icon">⚡</span> Load Demo Scenario (CNC Line 4)
+    <div class="rail-bottom">
+      <div class="rail-demo-actions">
+        <button id="btnRunFullDemo" class="btn-run-full-demo" onclick="runFullDemoStory()" title="Autonomous 3-minute demo presentation (Key: D)">
+          <span class="btn-icon">▶</span> Run Full Demo
+        </button>
+        <button id="btnTopResetDemo" class="btn-top-reset" onclick="resetDemo()" title="Reset to baseline scenario (Key: R)">
+          ↺ Reset Demo
         </button>
       </div>
 
-      <div class="fields">
-        <div class="form-group">
-          <label for="machine">Machine Identifier</label>
-          <input id="machine" value="CNC Production Line 4" placeholder="e.g. CNC Production Line 4" required>
+      <div class="rail-system-status">
+        <div class="rail-status-row">
+          <span class="status-indicator-dot online"></span>
+          <span id="clock" class="clock mono">00:00:00</span>
         </div>
-        <div class="form-group">
-          <label for="part">Part Number</label>
-          <input id="part" value="SKF 6205-2RS" placeholder="e.g. SKF 6205-2RS" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
-        </div>
-        <div class="form-group span-2">
-          <label for="desc">Component Description</label>
-          <input id="desc" value="Deep-groove ball bearing" placeholder="e.g. Deep-groove ball bearing" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
-        </div>
-        <div class="form-group">
-          <label for="qty">Quantity Needed (units)</label>
-          <input id="qty" type="number" value="20" min="1" max="1000" required>
-        </div>
-        <div class="form-group">
-          <label for="maxHours">Maximum Recovery Deadline (hours)</label>
-          <input id="maxHours" type="number" step="0.5" value="3" min="0.5" max="72" required>
-        </div>
-        <div class="form-group">
-          <label for="downtime">Downtime Loss Rate (₹ / hour)</label>
-          <input id="downtime" type="number" value="5000" min="0" step="100" required>
-        </div>
-        <div class="form-group">
-          <label for="techs">Available In-House Technicians</label>
-          <input id="techs" type="number" value="3" min="0" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
-          <span id="techHint" class="field-hint">—</span>
-        </div>
-        <div class="form-group">
-          <label for="techOverride">Required Technicians Override</label>
-          <input id="techOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
-        </div>
-        <div class="form-group">
-          <label for="installOverride">Installation Time Override (minutes)</label>
-          <input id="installOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
-        </div>
-        <div class="form-group span-2">
-          <label for="compat">Specification & Compatibility Criteria</label>
-          <textarea id="compat" placeholder="Dimensional and tolerance constraints...">6205-2RS, 25mm bore, 52mm OD, 15mm width. Equivalent brands require confirmation.</textarea>
-        </div>
-
-        <div class="form-group span-2">
-          <label for="chaosScenario">Deterministic Chaos Simulation Scenario (Demo Feature)</label>
-          <select id="chaosScenario" class="chaos-select">
-            <option value="standard" selected>Standard Golden Scenario (Clean C + D Split Recovery · 2.0h, ₹13,720)</option>
-            <option value="supplier_unsure">Chaos 1: Supplier Unsure / Tentative Stock ("let me check tomorrow")</option>
-            <option value="midcall_quantity_shift">Chaos 2: Mid-Call Quantity Shift (Shortfall discovery on line)</option>
-            <option value="no_answer">Chaos 3: Unresponsive Supplier (Auto-Retry & Escalation to next)</option>
-            <option value="price_revised_upward">Chaos 4: Emergency Price Hike (+55% breakdown surcharge)</option>
-            <option value="callback_promised">Chaos 5: Counter Closed (Callback promised in 45m)</option>
-          </select>
-          <span class="field-hint">Tests agent resilience under unpredictable supplier conversations with Python-driven auto-retries and escalation.</span>
-        </div>
-      </div>
-
-      <!-- Collapsible Live Settings -->
-      <details class="live-settings-accordion">
-        <summary class="live-settings-summary">
-          <span>Configured Supplier Phone Numbers (LIVE mode only)</span>
-          <span class="summary-hint">DEMO mode uses pre-loaded supplier responses</span>
-        </summary>
-        <div class="supplier-inputs">
-          <label><span>Supplier A</span><input class="phone" id="phone1" type="tel" placeholder="+919876543211"></label>
-          <label><span>Supplier B</span><input class="phone" id="phone2" type="tel" placeholder="+919876543212"></label>
-          <label><span>Supplier C</span><input class="phone" id="phone3" type="tel" placeholder="+919876543213"></label>
-          <label><span>Supplier D</span><input class="phone" id="phone4" type="tel" placeholder="+919876543214"></label>
-          <div class="live-test-panel">
-            <div class="call-status">Calls are initiated only when clicking <b>Start Recovery Agent</b>.</div>
-          </div>
-        </div>
-      </details>
-
-      <div class="form-actions">
-        <button id="startBtn" class="btn-primary-large" onclick="startRecovery()">
-          <span class="btn-icon">▶</span> Start Recovery Agent
+        <div id="modePill" class="rail-mode-pill">MODE · DEMO</div>
+        <button id="btnHelpShortcuts" class="btn-shortcuts-toggle" onclick="openKeyboardModal()" title="Keyboard shortcuts (Key: ?)">
+          ⌨ Hotkeys
         </button>
       </div>
     </div>
-  </section>
+  </aside>
 
   <!-- ========================================================================= -->
-  <!-- MODULE 2: SUPPLIER CALLS & ADAPTIVE SHORTFALL (#/calls)                   -->
+  <!-- MAIN EXECUTIVE CANVAS AREA                                                -->
   <!-- ========================================================================= -->
-  <section id="module-calls" class="module-view hidden">
-    
-    <div class="module-header-row">
-      <div>
-        <div class="eyebrow">MODULE 02 · REAL-TIME MULTI-SUPPLIER FEED</div>
-        <h2>Supplier Communication & Inventory Discovery</h2>
+  <div class="canvas-wrapper">
+
+    <!-- Hackathon Walkthrough Banner (Active when 'Run Full Demo' is triggered) -->
+    <aside id="walkthroughBanner" class="walkthrough-banner hidden" aria-live="polite">
+      <div class="walkthrough-content">
+        <span class="walkthrough-pulse-dot"></span>
+        <span class="walkthrough-tag">3-MIN LIVE DEMO</span>
+        <span id="walkthroughStageText" class="walkthrough-text">Initializing autonomous recovery story...</span>
       </div>
-      <div class="feed-status-cluster">
-        <span id="demoModeWatermark" class="demo-watermark-pill">SIMULATED SUPPLIER RESPONSES</span>
-        <span id="stage" class="stage-badge">WAITING</span>
+      <div class="walkthrough-controls">
+        <span id="walkthroughTimer" class="walkthrough-timer mono">00:00</span>
+        <button type="button" id="btnPauseDemo" class="btn-walkthrough-ctrl" onclick="togglePauseDemoWalkthrough()">⏸ Pause</button>
+        <button type="button" id="btnNextDemoStage" class="btn-walkthrough-ctrl" onclick="advanceDemoWalkthroughStage()">⏭ Skip Ahead</button>
+        <button type="button" class="btn-walkthrough-ctrl close" onclick="stopDemoWalkthrough()">✕ Exit Walkthrough</button>
       </div>
+    </aside>
+
+    <!-- Global Notification / Friendly Alert Toast -->
+    <div id="error" class="error-toast hidden" role="alert">
+      <div class="toast-icon">ℹ️</div>
+      <div class="toast-body">
+        <div id="errorMessage" class="toast-msg"></div>
+        <div id="errorTip" class="toast-tip"></div>
+      </div>
+      <button type="button" class="toast-close" onclick="clearError()" aria-label="Dismiss alert">✕</button>
     </div>
 
-    <!-- Inventory Secured Progress Bar -->
-    <div class="panel progress-panel">
-      <div class="progress-header">
-        <div class="progress-title-group">
-          <b>Recovery Quota Progress</b>
-          <span id="quotaText" class="quota-text">0 / 20 units secured (0%)</span>
-        </div>
-        <div id="quotaStatusText" class="quota-status-badge">Searching suppliers...</div>
+    <!-- Persistent Incident Summary Bar (Visible when run active) -->
+    <section id="incidentHeader" class="incident-header hidden">
+      <div class="incident-field">
+        <small>MACHINE</small>
+        <b id="incMachine">—</b>
       </div>
-      <div class="progress-track">
-        <div id="quotaProgressBar" class="progress-fill" style="width: 0%;"></div>
+      <div class="incident-field">
+        <small>FAILED PART</small>
+        <b id="incPart">—</b>
       </div>
-    </div>
-
-    <!-- THE SHORTFALL MOMENT (The Demo Highlight) -->
-    <div id="shortfallBanner" class="shortfall-moment-card hidden">
-      <div class="shortfall-card-top">
-        <div class="shortfall-pulse-dot"></div>
-        <div class="shortfall-content">
-          <div class="shortfall-eyebrow">🚨 THE SHORTFALL MOMENT · AUTONOMOUS MULTI-SUPPLIER ARBITRATION</div>
-          <h3 id="shortfallTitle">Supplier C has 8 of 20 units (pickup in 30m). Shortfall: 12 units.</h3>
-          <p id="shortfallDesc">Rather than waiting 24h for a slow single distributor or overpaying, RestartAI locks Supplier C's 8 units and autonomously calls Supplier D for the remaining 12 units.</p>
-        </div>
-        <div class="shortfall-action">
-          <div id="shortfallSpinner" class="spinner"></div>
-          <span id="shortfallActionLabel">Dialing Supplier D...</span>
-        </div>
+      <div class="incident-field">
+        <small>QUANTITY NEEDED</small>
+        <b id="incQty">—</b>
       </div>
-      
-      <!-- Visual Split-Sourcing Allocation Bar -->
-      <div class="shortfall-breakdown-bar">
-        <div class="split-leg leg-c" style="flex: 8;">
-          <span class="leg-label">Supplier C: 8 Units (40%)</span>
-          <span class="leg-sub">Pickup Ready: 30m</span>
-        </div>
-        <div id="shortfallLegD" class="split-leg leg-shortfall" style="flex: 12;">
-          <span id="shortfallLegDLabel" class="leg-label">🚨 SHORTAGE: 12 Units (60%)</span>
-          <span id="shortfallLegDEta" class="leg-sub">Calling Supplier D...</span>
-        </div>
+      <div class="incident-field">
+        <small>MAX DEADLINE</small>
+        <b id="incDeadline">—</b>
       </div>
-    </div>
-
-    <!-- Supplier Response Feed Cards / Table -->
-    <div class="panel supplier-feed-panel">
-      <div class="row-head">
-        <h2>Live Supplier Offers</h2>
-        <span class="hint">Compatibility score verified against physical dimensions</span>
+      <div class="incident-field cost">
+        <small>ACCRUED DOWNTIME COST</small>
+        <b id="incCost">₹0</b>
       </div>
-
-      <div class="table-responsive">
-        <table class="offer-table">
-          <thead>
-            <tr>
-              <th>SUPPLIER</th>
-              <th>STATUS</th>
-              <th>SPEC MATCH</th>
-              <th>AVAILABLE</th>
-              <th>UNIT PRICE</th>
-              <th>ARRIVAL ETA</th>
-              <th>LOGISTICS</th>
-            </tr>
-          </thead>
-          <tbody id="offerRows">
-            <tr class="empty-row"><td colspan="7">Awaiting supplier responses...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      
-      <div id="offerNotes" class="offer-notes"></div>
-    </div>
-
-    <!-- Adaptive Replanning Panel (Kept for compatibility & manual control) -->
-    <section id="replanPanel" class="panel replan-section hidden">
-      <div class="row-head">
-        <div>
-          <h2>Adaptive Shortfall Optimization</h2>
-          <p class="hint">The agent calls additional configured suppliers only when a verified compatible shortage exists.</p>
-        </div>
-        <button class="secondary" onclick="replan()">Replan / Call Next Supplier</button>
-      </div>
-      <div id="replanMessage" class="replan-box"></div>
     </section>
 
-    <!-- Module 2 Footer -->
-    <div class="module-nav-footer">
-      <button class="secondary" onclick="navigate('#/incident')">← Back to Incident Setup</button>
-      <button id="continueToPlanBtn" class="btn-primary" onclick="navigate('#/plan')" disabled>
-        Continue to Recovery Plan →
-      </button>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- MODULE 3: RECOVERY PLAN & ALTERNATIVES (#/plan)                           -->
-  <!-- ========================================================================= -->
-  <section id="module-plan" class="module-view hidden">
-    
-    <div class="module-header-row">
-      <div>
-        <div class="eyebrow">MODULE 03 · DETERMINISTIC OPTIMIZATION ENGINE</div>
-        <h2>Synthesized Production Recovery Plan</h2>
-      </div>
-      <span class="pill-recommended">MINIMUM TOTAL ECONOMIC EXPOSURE</span>
-    </div>
-
-    <!-- Recovery Plan Content (Wrapped in planPanel) -->
-    <div id="planPanel" class="plan-wrapper">
+    <!-- Asymmetric Grid: Main Canvas Content (Left/Center) + Executive Impact Column (Right) -->
+    <div class="executive-grid">
       
-      <!-- KPI Hero Cards Container -->
-      <div id="plan" class="plan-container">
-        <!-- Rendered dynamically by render() -->
-      </div>
+      <!-- Primary Canvas Column -->
+      <main class="canvas-main">
 
-      <!-- Phase 4 Decision Triad: Best Expected Plan vs Safe Plan vs Contingency Fallback Plan B -->
-      <div class="panel decision-triad-panel">
-        <div class="row-head">
-          <div>
-            <h2>Decision Triad & Uncertainty Architecture</h2>
-            <p class="hint">Continuous risk arbitration across deterministic models: Best Expected vs Confirmed Safe vs Contingency Fallback.</p>
+        <!-- Executive Incident Headline & Critical Badge -->
+        <header class="executive-masthead">
+          <div class="masthead-badge-row">
+            <span class="badge-critical-incident">CRITICAL INCIDENT</span>
+            <span class="masthead-time-pill mono" id="execIncidentTime">STOPPAGE T+0.0h</span>
+            <span class="masthead-loc-pill">SHOP FLOOR BAY 4 · PLANT 1</span>
           </div>
-          <span class="badge-decision-triad">3 DETERMINISTIC MODELS</span>
-        </div>
-        <div class="triad-grid">
-          <!-- Card 1: Best Expected -->
-          <div id="triadBestCard" class="triad-card active-triad">
-            <div class="triad-badge">1 · BEST EXPECTED PLAN (RECOMMENDED)</div>
-            <div class="triad-body">
-              <h3 id="triadBestTitle">Supplier C (8) + Supplier D (12)</h3>
-              <div class="triad-metrics">
-                <span>Recovery: <b id="triadBestTime" class="mono">2.0h</b></span>
-                <span>Exposure: <b id="triadBestExposure" class="mono">₹13,720</b></span>
-              </div>
-              <p class="triad-sub">Haircuts applied to any tentative stock. Evaluates split-sourcing to minimize line stoppage.</p>
-              <span class="triad-status-pill success">Optimal Exposure · Feasible</span>
+          <h1 id="executiveHeadline" class="executive-headline">CNC Production Line 4 is down.</h1>
+          <p class="executive-subhead">
+            Spindle bearing failure detected on Z-axis · 20 units required · Stoppage declared at T+0.0h
+          </p>
+        </header>
+
+        <!-- Prominent Centered Decision Brief Card -->
+        <section class="executive-decision-brief">
+          <div class="brief-kicker">
+            <span class="brief-kicker-dot"></span>
+            <span class="brief-kicker-text">RECOMMENDED DECISION · MINIMUM ECONOMIC EXPOSURE</span>
+          </div>
+          <h2 id="briefDecisionHeadline" class="brief-decision-title">
+            Recommended: split source with Supplier C + Supplier D
+          </h2>
+          <p class="brief-decision-summary">
+            Autonomous multi-supplier arbitration locks 8 units immediately available for counter pickup from Supplier C (30m) and 12 units express delivery from Supplier D (1.5h). Production restarts at T+2.0h, avoiding an estimated ₹111,780 in extended downtime loss.
+          </p>
+
+          <div class="brief-legs-container">
+            <div class="brief-leg-card">
+              <div class="leg-tag">LEG 1 · IMMEDIATE COUNTER PICKUP</div>
+              <div class="leg-name">Supplier C</div>
+              <div class="leg-quant mono">8 units @ ₹180/u</div>
+              <div class="leg-eta mono">Ready in 30 mins</div>
+            </div>
+            <div class="brief-leg-plus">+</div>
+            <div class="brief-leg-card">
+              <div class="leg-tag">LEG 2 · EXPRESS COURIER DISPATCH</div>
+              <div class="leg-name">Supplier D</div>
+              <div class="leg-quant mono">12 units @ ₹190/u</div>
+              <div class="leg-eta mono">Arrives in 1.5 hrs</div>
+            </div>
+            <div class="brief-leg-arrow">➔</div>
+            <div class="brief-leg-card milestone">
+              <div class="leg-tag">OUTCOME · RECOVERY TARGET</div>
+              <div class="leg-name">Production Resumes</div>
+              <div class="leg-quant mono">20 units installed</div>
+              <div class="leg-eta mono success">T+2.0 hrs (Target &lt; 3.0h)</div>
             </div>
           </div>
-          <!-- Card 2: Safe Plan -->
-          <div id="triadSafeCard" class="triad-card">
-            <div class="triad-badge">2 · SAFE PLAN (CONFIRMED STOCK ONLY)</div>
-            <div class="triad-body">
-              <h3 id="triadSafeTitle">Supplier C (8) + Supplier D (12)</h3>
-              <div class="triad-metrics">
-                <span>Recovery: <b id="triadSafeTime" class="mono">2.0h</b></span>
-                <span>Exposure: <b id="triadSafeExposure" class="mono">₹13,720</b></span>
-              </div>
-              <p class="triad-sub">Strictly utilizes 100% confirmed stock from audited tier-1 suppliers (reliability ≥ 0.85).</p>
-              <span id="triadSafeStatus" class="triad-status-pill success">Fully Confirmed · Feasible</span>
+        </section>
+
+        <!-- Chronological Supplier-Call Timeline -->
+        <section class="panel timeline-brief-card">
+          <div class="panel-head-clean">
+            <div>
+              <span class="eyebrow-slate">REAL-TIME TELEPHONY DISCOVERY</span>
+              <h3 class="panel-title-clean">Chronological Supplier-Call Timeline</h3>
             </div>
-          </div>
-          <!-- Card 3: Contingency Fallback Plan B -->
-          <div id="triadFallbackCard" class="triad-card fallback-triad">
-            <div class="triad-badge">3 · PRECOMPUTED PLAN B (CONTINGENCY)</div>
-            <div class="triad-body">
-              <h3 id="triadFallbackTitle">Supplier B (20u Single-Source Courier)</h3>
-              <div class="triad-metrics">
-                <span>Recovery: <b id="triadFallbackTime" class="mono">2.5h (+0.5h)</b></span>
-                <span>Exposure: <b id="triadFallbackExposure" class="mono">₹14,400 (+₹680)</b></span>
-              </div>
-              <p id="triadFallbackTrigger" class="triad-sub">Automated trigger: If Supplier C fails or delays beyond 1.0h, instantly reroute full order to Supplier B.</p>
-              <span class="triad-status-pill warning">Contingency Ready · Standby</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sensitivity & Breakeven Analysis -->
-      <div class="panel sensitivity-panel">
-        <div class="row-head">
-          <div>
-            <h2>Economic Sensitivity & Breakeven Threshold</h2>
-            <p class="hint">Evaluates exposure trade-offs across factory downtime rates and supplier transit slip tolerances.</p>
-          </div>
-          <span class="pill-recommended">BREAKEVEN DELAY: +8.2 MINS</span>
-        </div>
-        <div class="sensitivity-content">
-          <div class="sensitivity-callout">
-            <div class="callout-icon">⏱️</div>
-            <div class="callout-text">
-              <b>Analytical Delay Tolerance:</b>
-              <span id="sensitivityBreakevenText">At ₹5,000/hr downtime loss, Supplier D has an 8.2-minute slip tolerance (ETA 1h 38m). If Supplier D delays beyond that, single-source courier via Supplier B becomes mathematically optimal.</span>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="sensitivity-table">
-              <thead>
-                <tr>
-                  <th>DOWNTIME LOSS RATE</th>
-                  <th>RECOMMENDED PLAN (C+D)</th>
-                  <th>SINGLE SUPPLIER B</th>
-                  <th>NET SAVINGS</th>
-                  <th>SAVINGS %</th>
-                </tr>
-              </thead>
-              <tbody id="sensitivityRows">
-                <tr><td colspan="5" class="empty-row">Awaiting plan synthesis...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Part Cross-Reference Interchange Matrix -->
-      <div class="panel cross-ref-panel">
-        <div class="row-head">
-          <div>
-            <h2>Part Cross-Reference & Interchange Matrix</h2>
-            <p class="hint">Verified form-fit-function equivalents from the engineering asset registry (flagged for maintenance confirmation).</p>
-          </div>
-          <span class="badge-crossref">ENGINEERING DIRECTORY</span>
-        </div>
-        <div class="table-responsive">
-          <table class="crossref-table">
-            <thead>
-              <tr>
-                <th>EQUIVALENT BRAND</th>
-                <th>INTERCHANGE PART #</th>
-                <th>COMPATIBILITY CONFIDENCE</th>
-                <th>TECHNICAL SPECIFICATION NOTES</th>
-                <th>MAINTENANCE STATUS</th>
-              </tr>
-            </thead>
-            <tbody id="crossRefRows">
-              <tr><td colspan="5" class="empty-row">Loading part cross-reference matrix...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Technician Shift Schedule & Step-by-Step Milestones -->
-      <div class="panel technician-schedule-panel">
-        <div class="row-head">
-          <div>
-            <h2>Maintenance Labor Capacity & Staged Work Instructions</h2>
-            <p class="hint">Shift crew assignment and precision replacement milestones from the maintenance knowledge-base.</p>
-          </div>
-          <span id="shiftStatusPill" class="shift-status-pill">SHIFT A ACTIVE (3 CREW)</span>
-        </div>
-        <div class="shift-banner">
-          <div class="shift-meta">
-            <span class="lbl">ACTIVE SHIFT</span>
-            <b id="shiftName">Shift A · Morning Industrial Ops (06:00 - 14:00 IST)</b>
-          </div>
-          <div class="shift-meta">
-            <span class="lbl">REQUIRED COMPETENCY</span>
-            <b id="shiftSkill">Mechanical Maintenance Technician</b>
-          </div>
-          <div class="shift-meta">
-            <span class="lbl">ASSIGNED PERSONNEL</span>
-            <b id="shiftCrew">R. Sharma (Lead, #MEC-4412) · V. Patel (#MEC-3891)</b>
-          </div>
-        </div>
-        <div id="technicianMilestones" class="tech-milestones-list">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Execution Timeline (Material Arrival -> Install -> Production Restart) -->
-      <div class="panel timeline-panel">
-        <h2>Optimal Recovery Timeline</h2>
-        <div class="recovery-timeline">
-          <div class="timeline-step">
-            <div class="timeline-dot warning"></div>
-            <div class="timeline-time">T+0.0h</div>
-            <div class="timeline-title">Line Down</div>
-            <div class="timeline-desc">Bearing failure detected on CNC Line 4</div>
-          </div>
-          <div class="timeline-step">
-            <div class="timeline-dot info"></div>
-            <div class="timeline-time">T+0.5h</div>
-            <div class="timeline-title">Supplier C Ready</div>
-            <div class="timeline-desc">8 units ready for immediate courier pickup</div>
-          </div>
-          <div class="timeline-step">
-            <div class="timeline-dot info"></div>
-            <div class="timeline-time">T+1.5h</div>
-            <div class="timeline-title">Supplier D Arrives</div>
-            <div class="timeline-desc">Remaining 12 units delivered. Full quota (20) on site</div>
-          </div>
-          <div class="timeline-step">
-            <div class="timeline-dot success"></div>
-            <div class="timeline-time">T+2.0h</div>
-            <div class="timeline-title">Line Restarts</div>
-            <div class="timeline-desc">2 technicians complete 30-min install. Production resumes!</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Counterfactual Explainer Panel: What if we picked the cheapest supplier? -->
-      <div id="counterfactualPanel" class="panel counterfactual-panel">
-        <div class="row-head">
-          <div>
-            <div class="eyebrow" style="color:var(--orange);">MODULE 06 · COUNTERFACTUAL PROCUREMENT AUDIT</div>
-            <h2>What If We Picked The Cheapest Supplier?</h2>
-            <p class="hint">Direct economic comparison against conventional procurement heuristics on this incident.</p>
-          </div>
-          <span class="pill-recommended">ALGORITHMIC COMPARISON</span>
-        </div>
-
-        <div class="cf-banner-pitch">
-          <span class="pitch-quote">“We did not find the cheapest supplier. We found the fastest feasible way to restart production.”</span>
-        </div>
-
-        <div class="counterfactual-grid">
-          <!-- Card 1: RestartAI (Split Strategy) -->
-          <div class="cf-card optimal">
-            <div class="cf-card-header">
-              <span class="cf-badge optimal">RESTARTAI (OPTIMAL SPLIT)</span>
-              <span class="cf-status-pill success">✓ Line Restarts T+2.0h</span>
-            </div>
-            <div class="cf-title">Supplier C (8) + Supplier D (12)</div>
-            <div class="cf-stats">
-              <div class="cf-stat">
-                <span class="lbl">PURCHASE OUTLAY</span>
-                <span id="cfRestartPurchase" class="val mono">₹3,720</span>
-              </div>
-              <div class="cf-stat">
-                <span class="lbl">RECOVERY TIME</span>
-                <span id="cfRestartRecovery" class="val mono">2.0 hours</span>
-              </div>
-              <div class="cf-stat">
-                <span class="lbl">DOWNTIME LOSS</span>
-                <span id="cfRestartDowntime" class="val mono">₹10,000</span>
-              </div>
-              <div class="cf-stat highlight">
-                <span class="lbl">TOTAL EXPOSURE</span>
-                <span id="cfRestartExposure" class="val mono">₹13,720</span>
-              </div>
-            </div>
-            <div class="cf-verdict success">
-              <b>OPTIMAL ECONOMIC SOLUTION:</b> Meets 3.0h deadline with lowest total economic exposure. Dispatches courier for C & freight for D simultaneously.
-            </div>
+            <span class="badge-timeline-count mono">4 SUPPLIERS INTERROGATED</span>
           </div>
 
-          <!-- Card 2: Fastest-Single Courier (Supplier B) -->
-          <div class="cf-card courier">
-            <div class="cf-card-header">
-              <span class="cf-badge courier">FASTEST-SINGLE SUPPLIER</span>
-              <span class="cf-status-pill warning">+0.5h Delay (+₹3,180)</span>
-            </div>
-            <div class="cf-title">Supplier B Alone (20 units)</div>
-            <div class="cf-stats">
-              <div class="cf-stat">
-                <span class="lbl">PURCHASE OUTLAY</span>
-                <span id="cfFastestPurchase" class="val mono">₹4,400</span>
+          <div class="supplier-timeline-flow">
+            <div class="timeline-step-item">
+              <div class="timeline-meta-col">
+                <span class="timeline-time mono">T+0.1h</span>
+                <span class="timeline-marker danger"></span>
               </div>
-              <div class="cf-stat">
-                <span class="lbl">RECOVERY TIME</span>
-                <span id="cfFastestRecovery" class="val mono">2.5 hours</span>
-              </div>
-              <div class="cf-stat">
-                <span class="lbl">DOWNTIME LOSS</span>
-                <span id="cfFastestDowntime" class="val mono">₹12,500</span>
-              </div>
-              <div class="cf-stat warning">
-                <span class="lbl">TOTAL EXPOSURE</span>
-                <span id="cfFastestExposure" class="val mono">₹16,900</span>
+              <div class="timeline-card-content">
+                <div class="timeline-card-head">
+                  <span class="supplier-title">Supplier A</span>
+                  <span class="timeline-status-pill danger">Ruled Out · Delivery Tomorrow</span>
+                </div>
+                <p class="timeline-detail">
+                  Quoted lowest component price (₹150/unit), but earliest delivery is 24.0h. Would breach the 3.0h emergency deadline by 21.5 hours, racking up ₹122,500 in downtime loss.
+                </p>
               </div>
             </div>
-            <div id="cfFastestVerdict" class="cf-verdict warning">
-              <b>SUBOPTIMAL SINGLE-SOURCE:</b> Satisfies the 3.0h deadline, but incurs ₹680 higher purchase price and 30m extra factory downtime (+₹3,180 penalty vs RestartAI).
+
+            <div class="timeline-step-item">
+              <div class="timeline-meta-col">
+                <span class="timeline-time mono">T+0.2h</span>
+                <span class="timeline-marker warning"></span>
+              </div>
+              <div class="timeline-card-content">
+                <div class="timeline-card-head">
+                  <span class="supplier-title">Supplier B</span>
+                  <span class="timeline-status-pill warning">Evaluated · Precomputed Contingency Plan B</span>
+                </div>
+                <p class="timeline-detail">
+                  Confirmed full 20 units in stock at ₹220/unit with 2.0h arrival. Feasible single-source option, but costs ₹680 more and adds 30m of downtime vs split. Held as active contingency fallback.
+                </p>
+              </div>
+            </div>
+
+            <div class="timeline-step-item">
+              <div class="timeline-meta-col">
+                <span class="timeline-time mono">T+0.3h</span>
+                <span class="timeline-marker success"></span>
+              </div>
+              <div class="timeline-card-content">
+                <div class="timeline-card-head">
+                  <span class="supplier-title">Supplier C</span>
+                  <span class="timeline-status-pill success">Leg 1 Locked · Partial Stock (8/20)</span>
+                </div>
+                <p class="timeline-detail">
+                  Fastest counter pickup: 8 units ready in 30 minutes at ₹180/unit. Agent locks allocation immediately and flags a 12-unit shortfall to trigger autonomous second-wave dialing.
+                </p>
+              </div>
+            </div>
+
+            <div class="timeline-step-item">
+              <div class="timeline-meta-col">
+                <span class="timeline-time mono">T+0.4h</span>
+                <span class="timeline-marker success"></span>
+              </div>
+              <div class="timeline-card-content">
+                <div class="timeline-card-head">
+                  <span class="supplier-title">Supplier D</span>
+                  <span class="timeline-status-pill success">Leg 2 Locked · Shortfall Resolved</span>
+                </div>
+                <p class="timeline-detail">
+                  Autonomously dialed to fulfill the remaining 12 units at ₹190/unit. Express dispatch arriving at factory in 1.5h. Full 20-unit quota completed at minimal total economic exposure.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODULE 1: INCIDENT SETUP (#/incident)                               -->
+        <!-- =================================================================== -->
+        <section id="module-incident" class="module-view active">
+          
+          <div class="module-intro-card">
+            <span class="eyebrow-slate">STAGE 01 · INCIDENT CONFIGURATION & TELEMETRY</span>
+            <h2 class="module-title">Factory Fleet Telemetry & Recovery Setup</h2>
+            <p class="module-desc">RestartAI monitors machine status, simulates sensor anomaly ingestion, and configures recovery parameters before autonomous dialing begins.</p>
+          </div>
+
+          <!-- Live Industrial Incident Board & Monitored Fleet Grid -->
+          <div id="liveIncidentBoard" class="panel fleet-board-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">TELEMETRY MONITOR · SHOP FLOOR ASSETS</span>
+                <h3 class="panel-title-clean">Factory Fleet Telemetry Nodes</h3>
+                <p class="panel-subtext">Click any node below to inspect asset parameters or simulate real-time failure.</p>
+              </div>
+              <div class="fleet-status-pill">
+                <span class="status-pulse red"></span>
+                <span>1 CRITICAL FAULT · 4 NORMAL</span>
+              </div>
+            </div>
+
+            <div class="fleet-grid">
+              <!-- Node 1: CNC Line 4 (Critical Failure - Golden Scenario) -->
+              <div id="fleetCardCnc" class="fleet-node critical active-incident" onclick="selectFleetAsset('cnc-line-4')">
+                <div class="node-head">
+                  <span class="node-badge danger">CRITICAL FAULT</span>
+                  <span class="node-loss mono">₹5,000/hr</span>
+                </div>
+                <h4>CNC Production Line 4</h4>
+                <div class="node-meta">Spindle Axis Z · <b>SKF 6205-2RS</b> (20 units)</div>
+                <div class="node-telemetry danger">
+                  <span>RMS Vibration: <b>8.4 mm/s</b> (Limit 7.0)</span>
+                  <span class="node-state-pill">LINE DOWN</span>
+                </div>
+              </div>
+
+              <!-- Node 2: Stamping Press P-12 -->
+              <div id="fleetCardPress" class="fleet-node normal" onclick="selectFleetAsset('press-p-12')">
+                <div class="node-head">
+                  <span class="node-badge success">NORMAL</span>
+                  <span class="node-loss mono">₹8,000/hr</span>
+                </div>
+                <h4>Stamping Press P-12</h4>
+                <div class="node-meta">Main Ram · <b>SEAL-KIT-HYD-80</b> (15 units)</div>
+                <div class="node-telemetry success">
+                  <span>Hydraulic Pressure: <b>195 bar</b> (Nominal)</span>
+                  <span class="node-state-pill">OPERATIONAL</span>
+                </div>
+              </div>
+
+              <!-- Node 3: Injection Molding Unit 02 -->
+              <div id="fleetCardInj" class="fleet-node normal" onclick="selectFleetAsset('inj-mold-02')">
+                <div class="node-head">
+                  <span class="node-badge success">NORMAL</span>
+                  <span class="node-loss mono">₹3,500/hr</span>
+                </div>
+                <h4>Injection Molding Unit 02</h4>
+                <div class="node-meta">Barrel Zone 3 · <b>HEATER-BAND-400W</b> (25 units)</div>
+                <div class="node-telemetry success">
+                  <span>Zone Temp: <b>240°C</b> (Within Band)</span>
+                  <span class="node-state-pill">OPERATIONAL</span>
+                </div>
+              </div>
+
+              <!-- Node 4: Automated SMT Placement #1 -->
+              <div id="fleetCardSmt" class="fleet-node normal" onclick="selectFleetAsset('smt-place-1')">
+                <div class="node-head">
+                  <span class="node-badge success">NORMAL</span>
+                  <span class="node-loss mono">₹10,000/hr</span>
+                </div>
+                <h4>Automated SMT Line #1</h4>
+                <div class="node-meta">Head 4 · <b>NOZZLE-VAC-SMT-04</b> (30 units)</div>
+                <div class="node-telemetry success">
+                  <span>Vacuum Level: <b>92 kPa</b> (Nominal)</span>
+                  <span class="node-state-pill">OPERATIONAL</span>
+                </div>
+              </div>
+
+              <!-- Node 5: Packaging Conveyor C-1 -->
+              <div id="fleetCardPack" class="fleet-node warning" onclick="selectFleetAsset('pack-conv-1')">
+                <div class="node-head">
+                  <span class="node-badge warning">ADVISORY</span>
+                  <span class="node-loss mono">₹2,000/hr</span>
+                </div>
+                <h4>Packaging Conveyor C-1</h4>
+                <div class="node-meta">Drive End · <b>OPTICAL-SENSOR-M18</b> (40 units)</div>
+                <div class="node-telemetry warning">
+                  <span>Sensor Alignment: <b>Drift Detected</b></span>
+                  <span class="node-state-pill">MONITORING</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Fleet Impact Summary Strip -->
+            <div class="fleet-impact-strip">
+              <div class="fleet-impact-item">
+                <small>AVERAGE RECOVERY TIME</small>
+                <b class="mono success">2.34 hrs</b>
+                <span>vs 22.6h standard freight</span>
+              </div>
+              <div class="fleet-impact-item">
+                <small>ON-TIME RECOVERY RATE</small>
+                <b class="mono success">80.0%</b>
+                <span>vs 0.0% cheapest heuristic</span>
+              </div>
+              <div class="fleet-impact-item">
+                <small>AVERAGE LOSS PREVENTED</small>
+                <b class="mono success">₹124,692 / inc</b>
+                <span>86.5% exposure reduction</span>
+              </div>
+              <div class="fleet-impact-item">
+                <small>GOVERNANCE DISPATCH</small>
+                <b class="mono highlight">100% Gated</b>
+                <span>Operator must sign off</span>
+              </div>
             </div>
           </div>
 
-          <!-- Card 3: Cheapest-First (Supplier A) -->
-          <div class="cf-card disaster">
-            <div class="cf-card-header">
-              <span class="cf-badge disaster">CHEAPEST-FIRST HEURISTIC</span>
-              <span class="cf-status-pill danger">🚨 DEADLINE BREACH (+21.5h)</span>
-            </div>
-            <div class="cf-title">Supplier A Alone (20 units)</div>
-            <div class="cf-stats">
-              <div class="cf-stat">
-                <span class="lbl">PURCHASE OUTLAY</span>
-                <span id="cfCheapestPurchase" class="val mono good">₹3,000 (Saves ₹720)</span>
+          <!-- SENSE TRIGGER: Sensor Anomaly Ingestion -->
+          <div class="panel sense-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">STAGE 1: SENSE · EVENT-DRIVEN IOT TELEMETRY</span>
+                <h3 class="panel-title-clean">Sensor Anomaly Ingestion & Asset Registry</h3>
+                <p class="panel-subtext">Trigger real-time telemetry fault to automatically bind machinery specifications and downtime exposure.</p>
               </div>
-              <div class="cf-stat">
-                <span class="lbl">RECOVERY TIME</span>
-                <span id="cfCheapestRecovery" class="val mono danger">24.5 hours</span>
-              </div>
-              <div class="cf-stat">
-                <span class="lbl">DOWNTIME LOSS</span>
-                <span id="cfCheapestDowntime" class="val mono danger">₹122,500</span>
-              </div>
-              <div class="cf-stat danger">
-                <span class="lbl">TOTAL EXPOSURE</span>
-                <span id="cfCheapestExposure" class="val mono danger">₹125,500</span>
+              <div class="sense-actions">
+                <button type="button" id="btnSimulateFault" class="btn-fault-trigger" onclick="simulateMachineFault(false)">
+                  <span class="btn-icon">⚡</span> Ingest Telemetry Fault
+                </button>
+                <button type="button" id="btnSimulateAndRecover" class="btn-fault-recover" onclick="simulateMachineFault(true)">
+                  <span>⚡ Ingest & Auto-Recover</span>
+                </button>
               </div>
             </div>
-            <div id="cfCheapestVerdict" class="cf-verdict danger">
-              <b>DISASTROUS SOURCING DEFAULT:</b> Saving ₹720 on purchase caused a 24.5-hour shutdown, generating ₹122,500 in downtime losses and an <b>extra ₹111,780 economic penalty</b>.
+
+            <div class="asset-selector-row">
+              <label for="assetSelector">Target Production Asset:</label>
+              <select id="assetSelector" class="asset-select" onchange="onAssetSelected(this.value)">
+                <option value="cnc-line-4" selected>CNC Production Line 4 · CRITICAL (₹5,000/hr) · SKF 6205-2RS [Golden Scenario]</option>
+                <option value="inj-mold-02">Injection Molding Machine 02 · HIGH (₹3,500/hr) · HEATER-BAND-400W</option>
+                <option value="press-p-12">Stamping Press P-12 · CRITICAL (₹8,000/hr) · SEAL-KIT-HYD-80</option>
+                <option value="pack-conv-1">Packaging Line Conveyor C-1 · MEDIUM (₹2,000/hr) · OPTICAL-SENSOR-M18</option>
+              </select>
+            </div>
+
+            <!-- Incoming Fault Banner -->
+            <div id="incomingFaultBanner" class="fault-banner hidden">
+              <div class="fault-banner-header">
+                <span class="fault-badge-pulse">🚨 INCOMING TELEMETRY ANOMALY DETECTED</span>
+                <span id="faultEventTime" class="fault-time mono"></span>
+              </div>
+              <div class="fault-banner-body">
+                <div class="fault-metric-grid">
+                  <div class="fault-box">
+                    <span class="lbl">MACHINE</span>
+                    <span id="faultMachineName" class="val mono">CNC Production Line 4</span>
+                  </div>
+                  <div class="fault-box">
+                    <span class="lbl">SENSOR ID</span>
+                    <span id="faultSensorId" class="val mono">VIB-ACCEL-04</span>
+                  </div>
+                  <div class="fault-box">
+                    <span class="lbl">TELEMETRY READING</span>
+                    <span id="faultTelemetry" class="val mono warn">8.4 mm/s RMS (Limit: 7.0)</span>
+                  </div>
+                  <div class="fault-box">
+                    <span class="lbl">FAULT CODE</span>
+                    <span id="faultCode" class="val mono red">ERR-VIB-SPINDLE-6205</span>
+                  </div>
+                </div>
+                <div id="faultDescription" class="fault-msg">
+                  Vibration anomaly detected on spindle bearing axis Z (RMS 8.4 mm/s > 7.0 mm/s limit). Immediate seizure risk.
+                </div>
+                <div class="fault-footer-strip">
+                  <span>Resolved Replacement Part: <strong id="faultPartResolved" class="mono">SKF 6205-2RS (Deep-groove ball bearing)</strong></span>
+                  <span>Asset Criticality: <strong id="faultCriticality" class="mono">CRITICAL (₹5,000/hr)</strong></span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Comparison of Alternatives Considered -->
-      <div class="panel alternatives-panel">
-        <div class="row-head">
-          <div>
-            <h2>Alternative Options Evaluated by Python Engine</h2>
-            <p class="hint">Full transparency into what options were ruled out and the exact cost/time trade-off.</p>
+          <!-- Main Incident Parameters Form -->
+          <div class="panel incident-form-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">RECOVERY PARAMETERS</span>
+                <h3 class="panel-title-clean">Incident Specifications & Constraints</h3>
+                <p class="panel-subtext">Review machine stoppage parameters, required component quantity, loss rates, and maintenance crew.</p>
+              </div>
+              <button type="button" class="btn-demo-scenario" onclick="loadDemoScenario()">
+                <span class="btn-icon">⚡</span> Reset Golden Demo (CNC Line 4)
+              </button>
+            </div>
+
+            <div class="fields-grid">
+              <div class="form-group">
+                <label for="machine">Machine Identifier</label>
+                <input id="machine" value="CNC Production Line 4" placeholder="e.g. CNC Production Line 4" required>
+              </div>
+              <div class="form-group">
+                <label for="part">Part Number</label>
+                <input id="part" value="SKF 6205-2RS" placeholder="e.g. SKF 6205-2RS" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+              </div>
+              <div class="form-group span-2">
+                <label for="desc">Component Description</label>
+                <input id="desc" value="Deep-groove ball bearing" placeholder="e.g. Deep-groove ball bearing" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+              </div>
+              <div class="form-group">
+                <label for="qty">Quantity Needed (units)</label>
+                <input id="qty" type="number" value="20" min="1" max="1000" required>
+              </div>
+              <div class="form-group">
+                <label for="maxHours">Maximum Recovery Deadline (hours)</label>
+                <input id="maxHours" type="number" step="0.5" value="3" min="0.5" max="72" required>
+              </div>
+              <div class="form-group">
+                <label for="downtime">Downtime Loss Rate (₹ / hour)</label>
+                <input id="downtime" type="number" value="5000" min="0" step="100" required>
+              </div>
+              <div class="form-group">
+                <label for="techs">Available Technicians</label>
+                <input id="techs" type="number" value="3" min="0" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()" required>
+                <span id="techHint" class="field-hint">—</span>
+              </div>
+              <div class="form-group">
+                <label for="techOverride">Technicians Override</label>
+                <input id="techOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
+              </div>
+              <div class="form-group">
+                <label for="installOverride">Install Time Override (minutes)</label>
+                <input id="installOverride" type="number" min="0" placeholder="Auto from maintenance KB" oninput="scheduleMaintenanceIntelligence()" onchange="scheduleMaintenanceIntelligence()">
+              </div>
+              <div class="form-group span-2">
+                <label for="compat">Specification & Compatibility Criteria</label>
+                <textarea id="compat" placeholder="Dimensional constraints...">6205-2RS, 25mm bore, 52mm OD, 15mm width. Equivalent brands require confirmation.</textarea>
+              </div>
+              <div class="form-group span-2">
+                <label for="chaosScenario">Deterministic Chaos Simulation Scenario (Demo Feature)</label>
+                <select id="chaosScenario" class="chaos-select">
+                  <option value="standard" selected>Standard Golden Scenario (Clean C + D Split Recovery · 2.0h, ₹13,720)</option>
+                  <option value="supplier_unsure">Chaos 1: Supplier Unsure / Tentative Stock ("let me check tomorrow")</option>
+                  <option value="midcall_quantity_shift">Chaos 2: Mid-Call Quantity Shift (Shortfall discovery on line)</option>
+                  <option value="no_answer">Chaos 3: Unresponsive Supplier (Auto-Retry & Escalation)</option>
+                  <option value="price_revised_upward">Chaos 4: Emergency Price Hike (+55% breakdown surcharge)</option>
+                  <option value="callback_promised">Chaos 5: Counter Closed (Callback promised in 45m)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Mode Selector Panel -->
+            <div class="mode-subpanel">
+              <div class="mode-row">
+                <div>
+                  <label for="mode" class="mode-label">Operational Dialing Mode:</label>
+                  <p class="mode-sub">DEMO uses simulated deterministic responses offline. LIVE initiates real phone calls.</p>
+                </div>
+                <select id="mode" class="mode-select" onchange="updateModeUI()">
+                  <option value="demo" selected>DEMO (Simulated Supplier Telephony)</option>
+                  <option value="live">LIVE CALL-E (Real Telephony Outbound)</option>
+                </select>
+              </div>
+
+              <div id="liveBox" class="live-box hidden">
+                <div class="live-warning-head">
+                  <span class="warning-icon">⚠️</span>
+                  <b>LIVE TELEPHONY MODE ACTIVE</b>
+                </div>
+                <p>This will place automated phone calls. Only call authorized test numbers.</p>
+                <label class="checkline">
+                  <input type="checkbox" id="liveConfirm">
+                  <span>I authorize live outbound supplier telephony calls.</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Collapsible Live Settings -->
+            <details class="live-settings-accordion">
+              <summary class="live-settings-summary">
+                <span>Configured Supplier Phone Numbers (LIVE mode only)</span>
+                <span class="summary-hint">DEMO mode uses pre-loaded deterministic responses</span>
+              </summary>
+              <div class="supplier-inputs">
+                <label><span>Supplier A</span><input class="phone" id="phone1" type="tel" placeholder="+919876543211"></label>
+                <label><span>Supplier B</span><input class="phone" id="phone2" type="tel" placeholder="+919876543212"></label>
+                <label><span>Supplier C</span><input class="phone" id="phone3" type="tel" placeholder="+919876543213"></label>
+                <label><span>Supplier D</span><input class="phone" id="phone4" type="tel" placeholder="+919876543214"></label>
+              </div>
+            </details>
+
+            <div class="form-actions-clean">
+              <button id="startBtn" class="btn-primary-large" onclick="startRecovery()">
+                <span class="btn-icon">▶</span> Start Autonomous Recovery Agent
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODULE 2: SUPPLIER CALLS & ADAPTIVE SHORTFALL (#/calls)             -->
+        <!-- =================================================================== -->
+        <section id="module-calls" class="module-view hidden">
+          
+          <div class="module-intro-card">
+            <span class="eyebrow-slate">STAGE 02 · REAL-TIME MULTI-SUPPLIER FEED</span>
+            <div class="feed-header-wrap">
+              <h2 class="module-title">Supplier Communication & Inventory Discovery</h2>
+              <div class="feed-status-cluster">
+                <span id="demoModeWatermark" class="demo-watermark-pill">SIMULATED RESPONSES</span>
+                <span id="stage" class="stage-badge">WAITING</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inventory Quota Progress Bar -->
+          <div class="panel progress-panel">
+            <div class="progress-header">
+              <div class="progress-title-group">
+                <b>Emergency Inventory Quota Progress</b>
+                <span id="quotaText" class="quota-text">0 / 20 units secured (0%)</span>
+              </div>
+              <div id="quotaStatusText" class="quota-status-badge">Searching suppliers...</div>
+            </div>
+            <div class="progress-track">
+              <div id="quotaProgressBar" class="progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- THE SHORTFALL MOMENT (Hackathon Highlight) -->
+          <div id="shortfallBanner" class="shortfall-moment-card hidden">
+            <div class="shortfall-card-top">
+              <div class="shortfall-pulse-dot"></div>
+              <div class="shortfall-content">
+                <div class="shortfall-eyebrow">🚨 THE SHORTFALL MOMENT · AUTONOMOUS ARBITRATION</div>
+                <h3 id="shortfallTitle">Supplier C has 8 of 20 units (pickup in 30m). Shortfall: 12 units.</h3>
+                <p id="shortfallDesc">Rather than waiting 24h for a single distributor, RestartAI locks Supplier C's 8 units and autonomously calls Supplier D for the remaining 12 units.</p>
+              </div>
+              <div class="shortfall-action">
+                <div id="shortfallSpinner" class="spinner"></div>
+                <span id="shortfallActionLabel">Dialing Supplier D...</span>
+              </div>
+            </div>
+            
+            <!-- Visual Split-Sourcing Allocation Bar -->
+            <div class="shortfall-breakdown-bar">
+              <div class="split-leg leg-c" style="flex: 8;">
+                <span class="leg-label">Supplier C: 8 Units (40%)</span>
+                <span class="leg-sub">Pickup Ready: 30m</span>
+              </div>
+              <div id="shortfallLegD" class="split-leg leg-shortfall" style="flex: 12;">
+                <span id="shortfallLegDLabel" class="leg-label">🚨 SHORTAGE: 12 Units (60%)</span>
+                <span id="shortfallLegDEta" class="leg-sub">Calling Supplier D...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supplier Response Feed Table -->
+          <div class="panel supplier-feed-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">INVENTORY RESPONSES</span>
+                <h3 class="panel-title-clean">Verified Supplier Offers</h3>
+              </div>
+              <span class="panel-subtext">Physical specs and dimensions verified before ranking.</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="offer-table">
+                <thead>
+                  <tr>
+                    <th>SUPPLIER</th>
+                    <th>STATUS</th>
+                    <th>SPEC MATCH</th>
+                    <th>AVAILABLE</th>
+                    <th>UNIT PRICE</th>
+                    <th>ARRIVAL ETA</th>
+                    <th>LOGISTICS</th>
+                  </tr>
+                </thead>
+                <tbody id="offerRows">
+                  <tr class="empty-row"><td colspan="7">Awaiting supplier responses...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div id="offerNotes" class="offer-notes"></div>
+          </div>
+
+          <!-- Adaptive Replanning Panel -->
+          <section id="replanPanel" class="panel replan-section hidden">
+            <div class="panel-head-clean">
+              <div>
+                <h3 class="panel-title-clean">Adaptive Shortfall Optimization</h3>
+                <p class="panel-subtext">The agent triggers additional calls only when a confirmed stock shortage exists.</p>
+              </div>
+              <button class="secondary" onclick="replan()">Replan / Call Next Supplier</button>
+            </div>
+            <div id="replanMessage" class="replan-box"></div>
+          </section>
+
+          <!-- Module 2 Footer -->
+          <div class="module-nav-footer">
+            <button class="secondary" onclick="navigate('#/incident')">← Back to Incident Setup</button>
+            <button id="continueToPlanBtn" class="btn-primary" onclick="navigate('#/plan')" disabled>
+              Continue to Recovery Plan →
+            </button>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODULE 3: RECOVERY PLAN & ALTERNATIVES (#/plan)                     -->
+        <!-- =================================================================== -->
+        <section id="module-plan" class="module-view hidden">
+          
+          <div class="module-intro-card">
+            <span class="eyebrow-slate">STAGE 03 · DETERMINISTIC OPTIMIZATION</span>
+            <div class="feed-header-wrap">
+              <h2 class="module-title">Synthesized Production Recovery Plan</h2>
+              <span class="pill-recommended">MINIMUM TOTAL ECONOMIC EXPOSURE</span>
+            </div>
+          </div>
+
+          <div id="planPanel" class="plan-wrapper">
+            
+            <!-- Dynamic Plan KPI Card Container -->
+            <div id="plan" class="plan-container"></div>
+
+            <!-- Decision Triad: Best Expected vs Safe Plan vs Contingency Fallback Plan B -->
+            <div class="panel decision-triad-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">UNCERTAINTY ARCHITECTURE</span>
+                  <h3 class="panel-title-clean">Decision Triad & Risk Arbitration</h3>
+                  <p class="panel-subtext">Evaluates Best Expected Plan vs Confirmed Safe Plan vs Precomputed Contingency Plan B.</p>
+                </div>
+                <span class="badge-decision-triad">3 DETERMINISTIC MODELS</span>
+              </div>
+              <div class="triad-grid">
+                <!-- Card 1: Best Expected -->
+                <div id="triadBestCard" class="triad-card active-triad">
+                  <div class="triad-badge">1 · BEST EXPECTED PLAN (RECOMMENDED)</div>
+                  <div class="triad-body">
+                    <h3 id="triadBestTitle">Supplier C (8) + Supplier D (12)</h3>
+                    <div class="triad-metrics">
+                      <span>Recovery: <b id="triadBestTime" class="mono">2.0h</b></span>
+                      <span>Exposure: <b id="triadBestExposure" class="mono">₹13,720</b></span>
+                    </div>
+                    <p class="triad-sub">Haircuts applied to tentative stock. Evaluates split-sourcing to minimize line stoppage.</p>
+                    <span class="triad-status-pill success">Optimal Exposure · Feasible</span>
+                  </div>
+                </div>
+
+                <!-- Card 2: Safe Plan -->
+                <div id="triadSafeCard" class="triad-card">
+                  <div class="triad-badge">2 · SAFE PLAN (CONFIRMED STOCK ONLY)</div>
+                  <div class="triad-body">
+                    <h3 id="triadSafeTitle">Supplier C (8) + Supplier D (12)</h3>
+                    <div class="triad-metrics">
+                      <span>Recovery: <b id="triadSafeTime" class="mono">2.0h</b></span>
+                      <span>Exposure: <b id="triadSafeExposure" class="mono">₹13,720</b></span>
+                    </div>
+                    <p class="triad-sub">Strictly utilizes 100% confirmed stock from audited tier-1 suppliers (reliability ≥ 0.85).</p>
+                    <span id="triadSafeStatus" class="triad-status-pill success">Fully Confirmed · Feasible</span>
+                  </div>
+                </div>
+
+                <!-- Card 3: Contingency Fallback Plan B -->
+                <div id="triadFallbackCard" class="triad-card fallback-triad">
+                  <div class="triad-badge">3 · PRECOMPUTED PLAN B (CONTINGENCY)</div>
+                  <div class="triad-body">
+                    <h3 id="triadFallbackTitle">Supplier B (20u Single-Source Courier)</h3>
+                    <div class="triad-metrics">
+                      <span>Recovery: <b id="triadFallbackTime" class="mono">2.5h (+0.5h)</b></span>
+                      <span>Exposure: <b id="triadFallbackExposure" class="mono">₹14,400 (+₹680)</b></span>
+                    </div>
+                    <p id="triadFallbackTrigger" class="triad-sub">Automated trigger: If Supplier C fails or delays beyond 1.0h, instantly reroute full order to Supplier B.</p>
+                    <span class="triad-status-pill warning">Contingency Ready · Standby</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Economic Sensitivity & Breakeven Analysis -->
+            <div class="panel sensitivity-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">SENSITIVITY ANALYSIS</span>
+                  <h3 class="panel-title-clean">Economic Sensitivity & Transit Slip Tolerance</h3>
+                </div>
+                <span class="pill-recommended">BREAKEVEN DELAY: +8.2 MINS</span>
+              </div>
+              <div class="sensitivity-content">
+                <div class="sensitivity-callout">
+                  <div class="callout-icon">⏱️</div>
+                  <div class="callout-text">
+                    <b>Analytical Delay Tolerance:</b>
+                    <span id="sensitivityBreakevenText">At ₹5,000/hr downtime loss, Supplier D has an 8.2-minute slip tolerance (ETA 1h 38m). If Supplier D delays beyond that, single-source courier via Supplier B becomes mathematically optimal.</span>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="sensitivity-table">
+                    <thead>
+                      <tr>
+                        <th>DOWNTIME LOSS RATE</th>
+                        <th>RECOMMENDED PLAN (C+D)</th>
+                        <th>SINGLE SUPPLIER B</th>
+                        <th>NET SAVINGS</th>
+                        <th>SAVINGS %</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sensitivityRows">
+                      <tr><td colspan="5" class="empty-row">Awaiting plan synthesis...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Part Cross-Reference Interchange Matrix -->
+            <div class="panel cross-ref-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">ENGINEERING REGISTRY</span>
+                  <h3 class="panel-title-clean">Part Cross-Reference & Interchange Matrix</h3>
+                </div>
+                <span class="badge-crossref">ENGINEERING DIRECTORY</span>
+              </div>
+              <div class="table-responsive">
+                <table class="crossref-table">
+                  <thead>
+                    <tr>
+                      <th>EQUIVALENT BRAND</th>
+                      <th>INTERCHANGE PART #</th>
+                      <th>COMPATIBILITY CONFIDENCE</th>
+                      <th>TECHNICAL SPECIFICATION NOTES</th>
+                      <th>MAINTENANCE STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="crossRefRows">
+                    <tr><td colspan="5" class="empty-row">Loading part cross-reference matrix...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Technician Shift Schedule & Staged Work Instructions -->
+            <div class="panel technician-schedule-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">WORKFORCE LOGISTICS</span>
+                  <h3 class="panel-title-clean">Maintenance Labor Capacity & Shift Crew</h3>
+                </div>
+                <span id="shiftStatusPill" class="shift-status-pill">SHIFT A ACTIVE (3 CREW)</span>
+              </div>
+              <div class="shift-banner">
+                <div class="shift-meta">
+                  <span class="lbl">ACTIVE SHIFT</span>
+                  <b id="shiftName">Shift A · Morning Industrial Ops (06:00 - 14:00 IST)</b>
+                </div>
+                <div class="shift-meta">
+                  <span class="lbl">REQUIRED COMPETENCY</span>
+                  <b id="shiftSkill">Mechanical Maintenance Technician</b>
+                </div>
+                <div class="shift-meta">
+                  <span class="lbl">ASSIGNED PERSONNEL</span>
+                  <b id="shiftCrew">R. Sharma (Lead, #MEC-4412) · V. Patel (#MEC-3891)</b>
+                </div>
+              </div>
+              <div id="technicianMilestones" class="tech-milestones-list"></div>
+            </div>
+
+            <!-- Counterfactual Explainer Panel -->
+            <div id="counterfactualPanel" class="panel counterfactual-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">COUNTERFACTUAL AUDIT</span>
+                  <h3 class="panel-title-clean">What If We Picked The Cheapest Supplier?</h3>
+                  <p class="panel-subtext">Direct economic comparison against conventional procurement heuristics on this incident.</p>
+                </div>
+                <span class="pill-recommended">ALGORITHMIC COMPARISON</span>
+              </div>
+
+              <div class="cf-banner-pitch">
+                <span class="pitch-quote">“We did not find the cheapest supplier. We found the fastest feasible way to restart production.”</span>
+              </div>
+
+              <div class="counterfactual-grid">
+                <!-- Card 1: RestartAI -->
+                <div class="cf-card optimal">
+                  <div class="cf-card-header">
+                    <span class="cf-badge optimal">RESTARTAI (OPTIMAL SPLIT)</span>
+                    <span class="cf-status-pill success">✓ Restarts T+2.0h</span>
+                  </div>
+                  <div class="cf-title">Supplier C (8) + Supplier D (12)</div>
+                  <div class="cf-stats">
+                    <div class="cf-stat">
+                      <span class="lbl">PURCHASE OUTLAY</span>
+                      <span id="cfRestartPurchase" class="val mono">₹3,720</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">RECOVERY TIME</span>
+                      <span id="cfRestartRecovery" class="val mono">2.0 hours</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">DOWNTIME LOSS</span>
+                      <span id="cfRestartDowntime" class="val mono">₹10,000</span>
+                    </div>
+                    <div class="cf-stat highlight">
+                      <span class="lbl">TOTAL EXPOSURE</span>
+                      <span id="cfRestartExposure" class="val mono">₹13,720</span>
+                    </div>
+                  </div>
+                  <div class="cf-verdict success">
+                    <b>OPTIMAL ECONOMIC SOLUTION:</b> Meets 3.0h deadline with lowest total economic exposure. Dispatches courier for C & freight for D simultaneously.
+                  </div>
+                </div>
+
+                <!-- Card 2: Fastest-Single Courier -->
+                <div class="cf-card courier">
+                  <div class="cf-card-header">
+                    <span class="cf-badge courier">FASTEST-SINGLE SUPPLIER</span>
+                    <span class="cf-status-pill warning">+0.5h Delay (+₹3,180)</span>
+                  </div>
+                  <div class="cf-title">Supplier B Alone (20 units)</div>
+                  <div class="cf-stats">
+                    <div class="cf-stat">
+                      <span class="lbl">PURCHASE OUTLAY</span>
+                      <span id="cfFastestPurchase" class="val mono">₹4,400</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">RECOVERY TIME</span>
+                      <span id="cfFastestRecovery" class="val mono">2.5 hours</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">DOWNTIME LOSS</span>
+                      <span id="cfFastestDowntime" class="val mono">₹12,500</span>
+                    </div>
+                    <div class="cf-stat warning">
+                      <span class="lbl">TOTAL EXPOSURE</span>
+                      <span id="cfFastestExposure" class="val mono">₹16,900</span>
+                    </div>
+                  </div>
+                  <div id="cfFastestVerdict" class="cf-verdict warning">
+                    <b>SUBOPTIMAL SINGLE-SOURCE:</b> Satisfies the 3.0h deadline, but incurs ₹680 higher purchase price and 30m extra factory downtime (+₹3,180 penalty vs RestartAI).
+                  </div>
+                </div>
+
+                <!-- Card 3: Cheapest-First -->
+                <div class="cf-card disaster">
+                  <div class="cf-card-header">
+                    <span class="cf-badge disaster">CHEAPEST-FIRST HEURISTIC</span>
+                    <span class="cf-status-pill danger">🚨 DEADLINE BREACH (+21.5h)</span>
+                  </div>
+                  <div class="cf-title">Supplier A Alone (20 units)</div>
+                  <div class="cf-stats">
+                    <div class="cf-stat">
+                      <span class="lbl">PURCHASE OUTLAY</span>
+                      <span id="cfCheapestPurchase" class="val mono good">₹3,000 (Saves ₹720)</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">RECOVERY TIME</span>
+                      <span id="cfCheapestRecovery" class="val mono danger">24.5 hours</span>
+                    </div>
+                    <div class="cf-stat">
+                      <span class="lbl">DOWNTIME LOSS</span>
+                      <span id="cfCheapestDowntime" class="val mono danger">₹122,500</span>
+                    </div>
+                    <div class="cf-stat danger">
+                      <span class="lbl">TOTAL EXPOSURE</span>
+                      <span id="cfCheapestExposure" class="val mono danger">₹125,500</span>
+                    </div>
+                  </div>
+                  <div id="cfCheapestVerdict" class="cf-verdict danger">
+                    <b>DISASTROUS SOURCING DEFAULT:</b> Saving ₹720 on purchase caused a 24.5-hour shutdown, generating ₹122,500 in downtime losses and an <b>extra ₹111,780 economic penalty</b>.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comparison of Alternative Combinations -->
+            <div class="panel alternatives-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">ARBITRATION ENGINE</span>
+                  <h3 class="panel-title-clean">Alternative Options Evaluated by Python Engine</h3>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="alt-table">
+                  <thead>
+                    <tr>
+                      <th>RANK</th>
+                      <th>SUPPLIER COMBINATION</th>
+                      <th>ARRIVAL & INSTALL</th>
+                      <th>PURCHASE</th>
+                      <th>TOTAL EXPOSURE</th>
+                      <th>STATUS & EVALUATION</th>
+                    </tr>
+                  </thead>
+                  <tbody id="altPlans">
+                    <tr class="empty-row"><td colspan="6">No alternative combinations calculated yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- AI Plain-English Explanation -->
+            <div class="panel ai-recommendation-panel">
+              <div class="panel-head-clean">
+                <div>
+                  <span class="eyebrow-slate">NATURAL LANGUAGE JUSTIFICATION</span>
+                  <h3 class="panel-title-clean">AI Plain-English Executive Summary</h3>
+                </div>
+                <button id="aiRecBtn" class="btn-ai-explain" onclick="getAiRecommendation()">
+                  <span class="btn-icon">✨</span> Explain Recommendation
+                </button>
+              </div>
+              <div id="aiRecommendation" class="ai-recommendation-box hidden"></div>
+            </div>
+
+            <!-- Hidden compatibility approval row -->
+            <div class="approval-row hidden">
+              <div id="approval" class="approval">No purchase initiated — approval is required.</div>
+              <div class="approval-actions">
+                <button id="approveBtn" onclick="approve()">Approve recovery plan</button>
+                <button id="downloadBtn" class="secondary" onclick="downloadReport()">Download report</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Module 3 Footer -->
+          <div class="module-nav-footer">
+            <button class="secondary" onclick="navigate('#/calls')">← Back to Supplier Calls</button>
+            <button id="continueToApprovalBtn" class="btn-primary" onclick="navigate('#/approval')">
+              Continue to Human Approval & Audit →
+            </button>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODULE 4: HUMAN APPROVAL & AUDIT REPORT (#/approval)                -->
+        <!-- =================================================================== -->
+        <section id="module-approval" class="module-view hidden">
+          
+          <div class="module-intro-card">
+            <span class="eyebrow-slate">STAGE 04 · GOVERNANCE & AUDIT TRAIL</span>
+            <div class="feed-header-wrap">
+              <h2 class="module-title">Human-in-the-Loop Approval & Incident Dossier</h2>
+              <span id="approvalBadge" class="stage-badge">AWAITING OPERATOR APPROVAL</span>
+            </div>
+          </div>
+
+          <!-- Plan Recap Card -->
+          <div class="panel recap-panel">
+            <div class="recap-grid">
+              <div class="recap-item">
+                <small>INCIDENT TARGET</small>
+                <b id="recapMachine">CNC Production Line 4</b>
+                <span id="recapPart" class="recap-sub">SKF 6205-2RS · 20 units</span>
+              </div>
+              <div class="recap-item">
+                <small>RECOMMENDED RECOVERY</small>
+                <b id="recapLegs">Supplier C (8) + Supplier D (12)</b>
+                <span class="recap-sub">Split recovery · 2.0h total downtime</span>
+              </div>
+              <div class="recap-item">
+                <small>NET PURCHASE OUTLAY</small>
+                <b id="recapPurchase">₹3,720</b>
+                <span class="recap-sub">₹180/u (C) + ₹190/u (D)</span>
+              </div>
+              <div class="recap-item highlight">
+                <small>TOTAL ECONOMIC EXPOSURE</small>
+                <b id="recapExposure">₹13,720</b>
+                <span class="recap-sub">Includes ₹10,000 downtime cost</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 Pillars of Trust Strip -->
+          <div class="trust-strip">
+            <div class="trust-card">
+              <div class="trust-icon">⚙️</div>
+              <b>Deterministic Python</b>
+              <p>Every arrival timeline, labor feasibility calculation, and ranking is strictly deterministic.</p>
+            </div>
+            <div class="trust-card">
+              <div class="trust-icon">🧠</div>
+              <b>AI Language Only</b>
+              <p>The LLM provides natural language justification only. It cannot alter numbers or rankings.</p>
+            </div>
+            <div class="trust-card">
+              <div class="trust-icon">🛡️</div>
+              <b>Human Approves Everything</b>
+              <p>No procurement or PO is ever dispatched automatically. Human operator sign-off is mandatory.</p>
+            </div>
+          </div>
+
+          <!-- Primary Approval Decision Panel -->
+          <div class="panel approval-decision-panel">
+            <div class="panel-head-clean">
+              <div>
+                <h3 class="panel-title-clean">Operator Authorization & Sign-Off</h3>
+                <p class="panel-subtext">Signing off authorises the dispatch of courier pickup and delivery legs.</p>
+              </div>
+              <div id="approvalStatusDisplay" class="approval-status-pill">PENDING SIGN-OFF</div>
+            </div>
+
+            <div id="approvalActionBox" class="approval-action-box">
+              <div id="approvalNotice" class="approval-notice">
+                ⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.
+              </div>
+              <div class="approval-btn-group">
+                <button id="mod4ApproveBtn" class="btn-approve" onclick="approve()">
+                  ✓ Authorize & Approve Recovery Plan
+                </button>
+                <button class="btn-reject" onclick="rejectPlan()">
+                  ✕ Reject / Manual Sourcing
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Package Panel -->
+          <div id="actionPackagePanel" class="panel action-package-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">ACTION ARTIFACTS</span>
+                <h3 class="panel-title-clean">Operational Dispatch Artifacts (Drafts Prepared)</h3>
+                <p class="panel-subtext">Complete follow-up packages generated upon authorization. Dispatched only with explicit manual trigger.</p>
+              </div>
+              <div class="action-top-links">
+                <a id="mobileApproverLink" href="#" target="_blank" class="action-pill-link">
+                  📱 Mobile Approver View
+                </a>
+                <a id="printDossierLink" href="#" target="_blank" class="action-pill-link highlight">
+                  🖨️ Print / Save PDF Dossier
+                </a>
+              </div>
+            </div>
+
+            <div class="action-grid">
+              <!-- 1. PO Drafts -->
+              <div class="action-card">
+                <div class="action-card-head">
+                  <span class="action-card-tag">1 · PURCHASE ORDERS</span>
+                  <button type="button" class="btn-copy-small" onclick="copyActionArtifact('poDrafts')">📋 Copy POs</button>
+                </div>
+                <h4>Vendor Purchase Order Drafts</h4>
+                <div id="poDraftsContainer" class="po-drafts-list">
+                  <div class="loading-placeholder">Sign off on plan to generate purchase order drafts.</div>
+                </div>
+              </div>
+
+              <!-- 2. Technician Dispatch Message -->
+              <div class="action-card">
+                <div class="action-card-head">
+                  <span class="action-card-tag">2 · WORKFORCE DISPATCH</span>
+                  <button type="button" class="btn-copy-small" onclick="copyActionArtifact('techDispatch')">📋 Copy SMS</button>
+                </div>
+                <h4>Maintenance Crew SMS / Alert</h4>
+                <pre id="techDispatchText" class="action-pre">Awaiting plan authorization...</pre>
+              </div>
+
+              <!-- 3. Stakeholder Status Update -->
+              <div class="action-card">
+                <div class="action-card-head">
+                  <span class="action-card-tag">3 · EXECUTIVE BRIEF</span>
+                  <button type="button" class="btn-copy-small" onclick="copyActionArtifact('stakeholderNote')">📋 Copy Brief</button>
+                </div>
+                <h4>Plant Leadership Incident Update</h4>
+                <pre id="stakeholderNoteText" class="action-pre">Awaiting plan authorization...</pre>
+              </div>
+
+              <!-- 4. CMMS Work Order Payload -->
+              <div class="action-card">
+                <div class="action-card-head">
+                  <span class="action-card-tag">4 · CMMS INTEGRATION</span>
+                  <button type="button" class="btn-copy-small" onclick="downloadCmmsJson()">📥 Download JSON</button>
+                </div>
+                <h4>SAP PM / IBM Maximo Ticket JSON</h4>
+                <pre id="cmmsTicketText" class="action-pre">Awaiting plan authorization...</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Synthetic Benchmark Dashboard -->
+          <div id="syntheticBenchmarkPanel" class="panel benchmark-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">EMPIRICAL BENCHMARK</span>
+                <h3 class="panel-title-clean">Multi-Strategy Benchmark Across 35 Synthetic Incidents</h3>
+                <p class="panel-subtext">Rigorous algorithmic comparison across 35 seeded manufacturing breakdowns and 7 machinery classes.</p>
+              </div>
+              <span class="badge-benchmark">SYNTHETIC BENCHMARK · SEED 42</span>
+            </div>
+
+            <div class="benchmark-kpi-grid">
+              <div class="benchmark-card highlight">
+                <span class="benchmark-tag">SUCCESS RATE</span>
+                <h4>On-Time Recovery (Within Deadline)</h4>
+                <div class="kpi-comparison-rows">
+                  <div class="kpi-row">
+                    <span class="kpi-name">RestartAI</span>
+                    <span id="bmRestartOnTime" class="kpi-val mono success">80.0%</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Fastest-Single</span>
+                    <span id="bmFastestOnTime" class="kpi-val mono warning">60.0%</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Cheapest-First</span>
+                    <span id="bmCheapestOnTime" class="kpi-val mono danger">0.0%</span>
+                  </div>
+                </div>
+                <span class="benchmark-note">RestartAI achieves +80% higher on-time recovery than naive cheapest-first procurement.</span>
+              </div>
+
+              <div class="benchmark-card">
+                <span class="benchmark-tag">AVERAGE LOSS</span>
+                <h4>Mean Total Economic Exposure</h4>
+                <div class="kpi-comparison-rows">
+                  <div class="kpi-row">
+                    <span class="kpi-name">RestartAI</span>
+                    <span id="bmRestartExp" class="kpi-val mono success">₹19,467</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Fastest-Single</span>
+                    <span id="bmFastestExp" class="kpi-val mono warning">₹34,047 (+75%)</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Cheapest-First</span>
+                    <span id="bmCheapestExp" class="kpi-val mono danger">₹144,159 (+640%)</span>
+                  </div>
+                </div>
+                <span class="benchmark-note">RestartAI delivers ₹124,692 lower average loss per incident vs standard procurement.</span>
+              </div>
+
+              <div class="benchmark-card">
+                <span class="benchmark-tag">SPEED & DOWNTIME</span>
+                <h4>Mean Production Downtime</h4>
+                <div class="kpi-comparison-rows">
+                  <div class="kpi-row">
+                    <span class="kpi-name">RestartAI</span>
+                    <span id="bmRestartTime" class="kpi-val mono success">2.34 hrs</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Fastest-Single</span>
+                    <span id="bmFastestTime" class="kpi-val mono warning">4.53 hrs</span>
+                  </div>
+                  <div class="kpi-row">
+                    <span class="kpi-name">Cheapest-First</span>
+                    <span id="bmCheapestTime" class="kpi-val mono danger">22.60 hrs</span>
+                  </div>
+                </div>
+                <span class="benchmark-note">Split-sourcing avoids next-day freight delays and partial stockouts.</span>
+              </div>
+            </div>
+
+            <div class="benchmark-disclaimer">
+              ℹ️ <b>LABEL: SYNTHETIC BENCHMARK.</b> Simulated across 35 seeded manufacturing breakdown scenarios. Evaluates multi-supplier split optimization against heuristic baselines.
+            </div>
+          </div>
+
+          <!-- Chronological Activity Audit Timeline -->
+          <div class="panel audit-panel">
+            <div class="panel-head-clean">
+              <div>
+                <span class="eyebrow-slate">IMMUTABLE LOG</span>
+                <h3 class="panel-title-clean">Incident Audit Trail</h3>
+                <p class="panel-subtext">Complete immutable timestamped history of all agent decisions and operator interactions.</p>
+              </div>
+              <div class="audit-actions">
+                <button id="mod4DownloadBtn" class="secondary" onclick="downloadReport()">
+                  📥 Download Recovery Dossier (.txt)
+                </button>
+                <button class="secondary btn-reset" onclick="resetDemo()">
+                  ↺ Reset Demo Scenario
+                </button>
+              </div>
+            </div>
+            <div id="activityList" class="console-log">
+              <div class="log-empty">// awaiting incident input</div>
+            </div>
+          </div>
+
+          <!-- Module 4 Footer -->
+          <div class="module-nav-footer">
+            <button class="secondary" onclick="navigate('#/plan')">← Back to Recovery Plan</button>
+            <button class="btn-primary" onclick="resetDemo()">Start New Incident Setup ↺</button>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ===================================================================== -->
+      <!-- RIGHT-SIDE EXECUTIVE IMPACT & GOVERNANCE COLUMN                       -->
+      <!-- ===================================================================== -->
+      <aside class="canvas-impact-rail" aria-label="Executive Impact Summary">
+        
+        <!-- Impact Metric Card -->
+        <div class="impact-summary-card">
+          <div class="impact-card-head">
+            <span class="impact-eyebrow">EXECUTIVE IMPACT</span>
+            <span class="impact-live-badge mono">T+0.0h</span>
+          </div>
+
+          <div class="impact-stats-list">
+            <div class="impact-stat-row">
+              <span class="impact-stat-lbl">Loss rate:</span>
+              <span class="impact-stat-val mono" id="sideLossRate">₹5,000/hr</span>
+            </div>
+            <div class="impact-stat-row">
+              <span class="impact-stat-lbl">Time to recovery:</span>
+              <span class="impact-stat-val mono" id="sideRecoveryTime">2.0 hrs</span>
+            </div>
+            <div class="impact-stat-row highlight">
+              <span class="impact-stat-lbl">Total exposure:</span>
+              <span class="impact-stat-val mono highlight" id="sideTotalExposure">₹13,720</span>
+            </div>
+          </div>
+
+          <div class="impact-sub-breakdown">
+            <div class="sub-line">
+              <span>Net purchase cost</span>
+              <span class="mono" id="sidePurchaseCost">₹3,720</span>
+            </div>
+            <div class="sub-line">
+              <span>Downtime loss</span>
+              <span class="mono" id="sideDowntimeLoss">₹10,000</span>
+            </div>
+            <div class="sub-line">
+              <span>Recovery deadline</span>
+              <span class="mono" id="sideMaxDeadline">3.0 hrs max</span>
+            </div>
+          </div>
+
+          <div class="impact-savings-banner">
+            <span class="savings-tag">SAVINGS VS CONVENTIONAL</span>
+            <div class="savings-amount mono">₹111,780 saved</div>
+            <div class="savings-sub">89.1% lower financial exposure vs next-day freight</div>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="alt-table">
-            <thead>
-              <tr>
-                <th>RANK</th>
-                <th>SUPPLIER COMBINATION</th>
-                <th>ARRIVAL & INSTALL</th>
-                <th>PURCHASE</th>
-                <th>TOTAL EXPOSURE</th>
-                <th>STATUS & EVALUATION</th>
-              </tr>
-            </thead>
-            <tbody id="altPlans">
-              <tr class="empty-row"><td colspan="6">No alternative combinations calculated yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- AI Plain-English Explanation (Optional LLM layer) -->
-      <div class="panel ai-recommendation-panel">
-        <div class="row-head">
-          <div>
-            <h2>AI Plain-English Justification</h2>
-            <p class="hint">Language-only layer explains the deterministic mathematical choice to factory leadership.</p>
+        <!-- Lean Human Approval Card with "Review and approve" -->
+        <div class="lean-approval-card">
+          <div class="approval-card-top">
+            <span class="approval-eyebrow">GOVERNANCE GATE</span>
+            <h3 class="approval-card-title">Review and approve</h3>
           </div>
-          <button id="aiRecBtn" class="btn-ai-explain" onclick="getAiRecommendation()">
-            <span class="btn-icon">✨</span> Explain Recommendation
-          </button>
-        </div>
-        <div id="aiRecommendation" class="ai-recommendation-box hidden"></div>
-      </div>
+          <p class="approval-card-subtext">
+            No purchase or courier dispatch is executed automatically. Human sign-off is mandatory before any PO is released.
+          </p>
 
-      <!-- Hidden approval row preserved for compatibility; primary approval is in Module 4 -->
-      <div class="approval-row hidden">
-        <div id="approval" class="approval">No purchase initiated — approval is required.</div>
-        <div class="approval-actions">
-          <button id="approveBtn" onclick="approve()">Approve recovery plan</button>
-          <button id="downloadBtn" class="secondary" onclick="downloadReport()">Download report</button>
+          <div class="approval-status-line">
+            <span class="status-dot-pulse"></span>
+            <span id="sideApprovalStatusText" class="status-text mono">AWAITING OPERATOR APPROVAL</span>
+          </div>
+
+          <div class="approval-btn-stack">
+            <button type="button" id="sideApproveBtn" class="btn-side-approve" onclick="approve()">
+              ✓ Authorize & Approve Plan
+            </button>
+            <button type="button" id="sideRejectBtn" class="btn-side-reject" onclick="rejectPlan()">
+              ✕ Reject / Manual Sourcing
+            </button>
+          </div>
+
+          <div class="approval-quick-links">
+            <a id="sideMobileLink" href="/approver/demo" target="_blank" class="approval-mini-link">
+              📱 Mobile Approver View
+            </a>
+            <a id="sideDossierLink" href="#" onclick="downloadReport(); return false;" class="approval-mini-link">
+              📥 Download Dossier (.txt)
+            </a>
+          </div>
         </div>
-      </div>
+
+        <!-- Incident Quick Info Card -->
+        <div class="incident-quick-card">
+          <div class="quick-card-head">INCIDENT CONTEXT</div>
+          <div class="quick-spec-item">
+            <span class="spec-lbl">Machine:</span>
+            <b class="spec-val">CNC Production Line 4</b>
+          </div>
+          <div class="quick-spec-item">
+            <span class="spec-lbl">Required Part:</span>
+            <b class="spec-val mono">SKF 6205-2RS</b>
+          </div>
+          <div class="quick-spec-item">
+            <span class="spec-lbl">Required Qty:</span>
+            <b class="spec-val mono">20 units</b>
+          </div>
+          <div class="quick-spec-item">
+            <span class="spec-lbl">Maintenance Crew:</span>
+            <b class="spec-val">2 Techs (30m install)</b>
+          </div>
+        </div>
+
+      </aside>
 
     </div>
+  </div>
 
-    <!-- Module 3 Footer -->
-    <div class="module-nav-footer">
-      <button class="secondary" onclick="navigate('#/calls')">← Back to Supplier Calls</button>
-      <button id="continueToApprovalBtn" class="btn-primary" onclick="navigate('#/approval')">
-        Continue to Human Approval & Audit →
-      </button>
-    </div>
-  </section>
+</div>
 
-  <!-- ========================================================================= -->
-  <!-- MODULE 4: HUMAN APPROVAL & AUDIT REPORT (#/approval)                      -->
-  <!-- ========================================================================= -->
-  <section id="module-approval" class="module-view hidden">
-    
-    <div class="module-header-row">
-      <div>
-        <div class="eyebrow">MODULE 04 · GOVERNANCE & AUDIT TRAIL</div>
-        <h2>Human-in-the-Loop Approval & Incident Dossier</h2>
-      </div>
-      <span id="approvalBadge" class="stage-badge">AWAITING OPERATOR APPROVAL</span>
-    </div>
+<!-- ========================================================================= -->
+<!-- MODALS & FLOATING WIDGETS                                                 -->
+<!-- ========================================================================= -->
 
-    <!-- Plan Recap Card -->
-    <div class="panel recap-panel">
-      <div class="recap-grid">
-        <div class="recap-item">
-          <small>INCIDENT TARGET</small>
-          <b id="recapMachine">CNC Production Line 4</b>
-          <span id="recapPart" class="recap-sub">SKF 6205-2RS · 20 units</span>
-        </div>
-        <div class="recap-item">
-          <small>RECOMMENDED RECOVERY</small>
-          <b id="recapLegs">Supplier C (8) + Supplier D (12)</b>
-          <span class="recap-sub">Split recovery · 2.0h total downtime</span>
-        </div>
-        <div class="recap-item">
-          <small>NET PURCHASE OUTLAY</small>
-          <b id="recapPurchase">₹3,720</b>
-          <span class="recap-sub">₹180/u (C) + ₹190/u (D)</span>
-        </div>
-        <div class="recap-item highlight">
-          <small>TOTAL ECONOMIC EXPOSURE</small>
-          <b id="recapExposure">₹13,720</b>
-          <span class="recap-sub">Includes ₹10,000 downtime cost</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3 Pillars of Trust Strip -->
-    <div class="trust-strip">
-      <div class="trust-card">
-        <div class="trust-icon">⚙️</div>
-        <b>Deterministic Python</b>
-        <p>Every arrival timeline, labor feasibility calculation, and ranking is strictly deterministic.</p>
-      </div>
-      <div class="trust-card">
-        <div class="trust-icon">🧠</div>
-        <b>AI Language Only</b>
-        <p>The LLM provides natural language justification only. It cannot alter numbers or rankings.</p>
-      </div>
-      <div class="trust-card">
-        <div class="trust-icon">🛡️</div>
-        <b>Human Approves Everything</b>
-        <p>No procurement or PO is ever dispatched automatically. Human operator sign-off is mandatory.</p>
-      </div>
-    </div>
-
-    <!-- Approval Action Card -->
-    <div class="panel approval-decision-panel">
-      <div class="decision-head">
-        <div>
-          <h2>Operator Authorization</h2>
-          <p class="hint">Signing off authorises the dispatch of courier pickup and delivery legs.</p>
-        </div>
-        <div id="approvalStatusDisplay" class="approval-status-pill">PENDING SIGN-OFF</div>
-      </div>
-
-      <div id="approvalActionBox" class="approval-action-box">
-        <div id="approvalNotice" class="approval-notice">
-          ⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.
-        </div>
-        <div class="approval-btn-group">
-          <button id="mod4ApproveBtn" class="btn-approve" onclick="approve()">
-            ✓ Authorize & Approve Recovery Plan
-          </button>
-          <button class="btn-reject" onclick="rejectPlan()">
-            ✕ Reject / Manual Sourcing
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- PHASE 5: HUMAN-GATED ACTION PACKAGE ARTIFACTS -->
-    <div id="actionPackagePanel" class="panel action-package-panel">
-      <div class="row-head">
-        <div>
-          <div class="eyebrow" style="color:var(--orange);">MODULE 05 · HUMAN-GATED ACTION PACKAGE</div>
-          <h2>Operational Dispatch Artifacts (Drafts Prepared)</h2>
-          <p class="hint">Complete follow-up packages generated upon authorization. Dispatched only with explicit manual trigger.</p>
-        </div>
-        <div class="action-top-links">
-          <a id="mobileApproverLink" href="#" target="_blank" class="action-pill-link">
-            📱 Mobile Approver View
-          </a>
-          <a id="printDossierLink" href="#" target="_blank" class="action-pill-link highlight">
-            🖨️ Print / Save PDF Dossier
-          </a>
-        </div>
-      </div>
-
-      <!-- Action Tabs / Sections -->
-      <div class="action-grid">
-        <!-- 1. PO Drafts -->
-        <div class="action-card">
-          <div class="action-card-head">
-            <span class="action-card-tag">1 · PURCHASE ORDERS</span>
-            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('poDrafts')">📋 Copy POs</button>
-          </div>
-          <h4>Vendor Purchase Order Drafts</h4>
-          <div id="poDraftsContainer" class="po-drafts-list">
-            <div class="loading-placeholder">Sign off on plan to generate purchase order drafts.</div>
-          </div>
-        </div>
-
-        <!-- 2. Technician Dispatch Message -->
-        <div class="action-card">
-          <div class="action-card-head">
-            <span class="action-card-tag">2 · WORKFORCE DISPATCH</span>
-            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('techDispatch')">📋 Copy SMS</button>
-          </div>
-          <h4>Maintenance Crew SMS / Alert</h4>
-          <pre id="techDispatchText" class="action-pre">Awaiting plan authorization...</pre>
-        </div>
-
-        <!-- 3. Stakeholder Status Update -->
-        <div class="action-card">
-          <div class="action-card-head">
-            <span class="action-card-tag">3 · EXECUTIVE BRIEF</span>
-            <button type="button" class="btn-copy-small" onclick="copyActionArtifact('stakeholderNote')">📋 Copy Brief</button>
-          </div>
-          <h4>Plant Leadership Incident Update</h4>
-          <pre id="stakeholderNoteText" class="action-pre">Awaiting plan authorization...</pre>
-        </div>
-
-        <!-- 4. CMMS Work Order Payload -->
-        <div class="action-card">
-          <div class="action-card-head">
-            <span class="action-card-tag">4 · CMMS INTEGRATION</span>
-            <button type="button" class="btn-copy-small" onclick="downloadCmmsJson()">📥 Download JSON</button>
-          </div>
-          <h4>SAP PM / IBM Maximo Ticket JSON</h4>
-          <pre id="cmmsTicketText" class="action-pre">Awaiting plan authorization...</pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- PHASE 6: SYNTHETIC BENCHMARK COMPARATIVE DASHBOARD -->
-    <div id="syntheticBenchmarkPanel" class="panel benchmark-panel">
-      <div class="row-head">
-        <div>
-          <div class="eyebrow" style="color:var(--orange);">MODULE 06 · EMPIRICAL ALGORITHM BENCHMARK</div>
-          <h2>Multi-Strategy Benchmark Across 35 Synthetic Incidents</h2>
-          <p class="hint">Rigorous algorithmic comparison across 35 seeded manufacturing breakdowns and 7 machinery classes.</p>
-        </div>
-        <span class="badge-benchmark">SYNTHETIC BENCHMARK · SEED 42</span>
-      </div>
-
-      <div class="benchmark-kpi-grid">
-        <!-- Metric 1: On-Time Recovery Rate -->
-        <div class="benchmark-card highlight">
-          <span class="benchmark-tag">SUCCESS RATE</span>
-          <h4>On-Time Recovery (Within Deadline)</h4>
-          <div class="kpi-comparison-rows">
-            <div class="kpi-row">
-              <span class="kpi-name">RestartAI</span>
-              <span id="bmRestartOnTime" class="kpi-val mono success">80.0%</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Fastest-Single</span>
-              <span id="bmFastestOnTime" class="kpi-val mono warning">60.0%</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Cheapest-First</span>
-              <span id="bmCheapestOnTime" class="kpi-val mono danger">0.0%</span>
-            </div>
-          </div>
-          <span class="benchmark-note">RestartAI achieves +80% higher on-time recovery than naive cheapest-first procurement.</span>
-        </div>
-
-        <!-- Metric 2: Average Economic Exposure -->
-        <div class="benchmark-card">
-          <span class="benchmark-tag">AVERAGE LOSS</span>
-          <h4>Mean Total Economic Exposure</h4>
-          <div class="kpi-comparison-rows">
-            <div class="kpi-row">
-              <span class="kpi-name">RestartAI</span>
-              <span id="bmRestartExp" class="kpi-val mono success">₹19,467</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Fastest-Single</span>
-              <span id="bmFastestExp" class="kpi-val mono warning">₹34,047 (+75%)</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Cheapest-First</span>
-              <span id="bmCheapestExp" class="kpi-val mono danger">₹144,159 (+640%)</span>
-            </div>
-          </div>
-          <span class="benchmark-note">RestartAI delivers ₹124,692 lower average loss per incident vs standard procurement.</span>
-        </div>
-
-        <!-- Metric 3: Average Recovery Time -->
-        <div class="benchmark-card">
-          <span class="benchmark-tag">SPEED & DOWNTIME</span>
-          <h4>Mean Production Downtime</h4>
-          <div class="kpi-comparison-rows">
-            <div class="kpi-row">
-              <span class="kpi-name">RestartAI</span>
-              <span id="bmRestartTime" class="kpi-val mono success">2.34 hrs</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Fastest-Single</span>
-              <span id="bmFastestTime" class="kpi-val mono warning">4.53 hrs</span>
-            </div>
-            <div class="kpi-row">
-              <span class="kpi-name">Cheapest-First</span>
-              <span id="bmCheapestTime" class="kpi-val mono danger">22.60 hrs</span>
-            </div>
-          </div>
-          <span class="benchmark-note">Split-sourcing avoids next-day freight delays and partial stockouts.</span>
-        </div>
-      </div>
-
-      <div class="benchmark-disclaimer">
-        ℹ️ <b>LABEL: SYNTHETIC BENCHMARK.</b> Simulated across 35 seeded manufacturing breakdown scenarios (CNC lines, injection molders, stamping presses, packaging conveyors, SMT placers). Evaluates multi-supplier split optimization against heuristic baselines.
-      </div>
-    </div>
-
-    <!-- Vertical Activity Audit Timeline -->
-    <div class="panel audit-panel">
-      <div class="row-head">
-        <div>
-          <h2>Incident Audit Trail (Chronological)</h2>
-          <p class="hint">Complete immutable timestamped history of all agent decisions and operator interactions.</p>
-        </div>
-        <div class="audit-actions">
-          <button id="mod4DownloadBtn" class="secondary" onclick="downloadReport()">
-            📥 Download Recovery Dossier (.txt)
-          </button>
-          <button class="secondary btn-reset" onclick="resetDemo()">
-            ↺ Reset Demo Scenario
-          </button>
-        </div>
-      </div>
-      <div id="activityList" class="console-log">
-        <div class="log-empty">// awaiting incident input</div>
-      </div>
-    </div>
-
-    <!-- Module 4 Footer -->
-    <div class="module-nav-footer">
-      <button class="secondary" onclick="navigate('#/plan')">← Back to Recovery Plan</button>
-      <button class="btn-primary" onclick="resetDemo()">Start New Incident Setup ↺</button>
-    </div>
-  </section>
-
-</main>
-
-<!-- Floating Chat Assistant Widget (Available Across All Modules) -->
+<!-- Floating Chat Assistant Widget -->
 <div id="chatWidget" class="chat-widget collapsed">
   <button id="chatToggle" class="chat-toggle" onclick="toggleChat()">
     <span class="chat-toggle-icon">💬</span>
@@ -1187,14 +1406,13 @@
   <div class="modal-card transcript-modal-card" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div>
-        <div class="eyebrow">VERBATIM CALL LOG & EXTRACTION EVIDENCE</div>
+        <div class="eyebrow-slate">VERBATIM CALL LOG & EXTRACTION EVIDENCE</div>
         <h2 id="modalSupplierTitle">Call Transcript · Supplier</h2>
       </div>
       <button class="modal-close" onclick="closeTranscriptModal()">×</button>
     </div>
 
     <div class="modal-body">
-      <!-- Call Metadata Strip -->
       <div class="call-meta-strip">
         <div>
           <small>STATUS</small>
@@ -1214,7 +1432,6 @@
         </div>
       </div>
 
-      <!-- Dialogue Section -->
       <div class="transcript-dialogue-section">
         <h3>Call Audio Transcript</h3>
         <div id="modalTranscriptText" class="transcript-text mono">
@@ -1222,13 +1439,10 @@
         </div>
       </div>
 
-      <!-- Extracted Ground Truth Strip -->
       <div class="extracted-evidence-section">
         <h3>Extracted Ground-Truth & Source Quotes</h3>
-        <p class="hint">Verbatim quotes extracted from dialogue with confidence scores. The Python engine uses only these values.</p>
-        <div id="modalExtractedGrid" class="extracted-grid">
-          <!-- Dynamically populated -->
-        </div>
+        <p class="panel-subtext">Verbatim quotes extracted from dialogue with confidence scores. The Python engine uses only these values.</p>
+        <div id="modalExtractedGrid" class="extracted-grid"></div>
       </div>
     </div>
 
@@ -1243,7 +1457,7 @@
   <div class="modal-card keyboard-modal-card" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div>
-        <div class="eyebrow" style="color:var(--orange);">KEYBOARD ACCESSIBILITY & CONTROLS</div>
+        <div class="eyebrow-slate">KEYBOARD ACCESSIBILITY & CONTROLS</div>
         <h2>Hotkeys & Navigation Shortcuts</h2>
       </div>
       <button class="modal-close" onclick="closeKeyboardModal()">×</button>
@@ -1282,6 +1496,6 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20261125-multi-module"></script>
+<script src="/static/app.js?v=20261125-executive-brief"></script>
 </body>
 </html>

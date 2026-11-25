@@ -142,16 +142,16 @@ function updateStepperUI() {
   const step4 = $("step-btn-4");
 
   if (step1) {
-    step1.className = "step" + (currentModule === "#/incident" ? " active" : hasRun ? " completed" : "");
+    step1.className = "rail-btn step" + (currentModule === "#/incident" ? " active" : hasRun ? " completed" : "");
   }
   if (step2) {
-    step2.className = "step" + (currentModule === "#/calls" ? " active" : hasPlan ? " completed" : !hasRun ? " locked" : "");
+    step2.className = "rail-btn step" + (currentModule === "#/calls" ? " active" : hasPlan ? " completed" : !hasRun ? " locked" : "");
   }
   if (step3) {
-    step3.className = "step" + (currentModule === "#/plan" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
+    step3.className = "rail-btn step" + (currentModule === "#/plan" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
   }
   if (step4) {
-    step4.className = "step" + (currentModule === "#/approval" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
+    step4.className = "rail-btn step" + (currentModule === "#/approval" ? " active" : isApproved ? " completed" : !hasPlan ? " locked" : "");
   }
 }
 
@@ -614,6 +614,16 @@ async function approve() {
     }
     const approveBtn = $("mod4ApproveBtn");
     if (approveBtn) approveBtn.disabled = true;
+    const sideApproveBtn = $("sideApproveBtn");
+    if (sideApproveBtn) {
+      sideApproveBtn.disabled = true;
+      sideApproveBtn.textContent = "✓ Plan Authorized";
+    }
+    const sideStatus = $("sideApprovalStatusText");
+    if (sideStatus) {
+      sideStatus.textContent = "✓ AUTHORIZED";
+      sideStatus.className = "status-text mono approved";
+    }
 
     logActivity("plan_approved by=human_operator purchase=not_automated status=authorized");
     loadActionPackage(runId);
@@ -628,6 +638,11 @@ function rejectPlan() {
   const notice = $("approvalNotice");
   if (notice) {
     notice.innerHTML = "<b class=\"bad\">✕ Plan Rejected.</b> Switched to manual supplier dispatch. Audit logged.";
+  }
+  const sideStatus = $("sideApprovalStatusText");
+  if (sideStatus) {
+    sideStatus.textContent = "✕ REJECTED";
+    sideStatus.className = "status-text mono rejected";
   }
 }
 
@@ -846,6 +861,16 @@ function resetDemo() {
   $("approvalStatusDisplay") && ($("approvalStatusDisplay").textContent = "PENDING SIGN-OFF", $("approvalStatusDisplay").classList.remove("approved"));
   $("approvalNotice") && ($("approvalNotice").innerHTML = "⚠️ <b>No purchase has been initiated.</b> Approval is strictly required to proceed with logistics.");
   $("mod4ApproveBtn") && ($("mod4ApproveBtn").disabled = false);
+  $("sideApproveBtn") && ($("sideApproveBtn").disabled = false, $("sideApproveBtn").textContent = "✓ Authorize & Approve Plan");
+  $("sideApprovalStatusText") && ($("sideApprovalStatusText").textContent = "AWAITING OPERATOR APPROVAL", $("sideApprovalStatusText").className = "status-text mono");
+  $("sideLossRate") && ($("sideLossRate").textContent = "₹5,000/hr");
+  $("sideRecoveryTime") && ($("sideRecoveryTime").textContent = "2.0 hrs");
+  $("sideTotalExposure") && ($("sideTotalExposure").textContent = "₹13,720");
+  $("sidePurchaseCost") && ($("sidePurchaseCost").textContent = "₹3,720");
+  $("sideDowntimeLoss") && ($("sideDowntimeLoss").textContent = "₹10,000");
+  $("sideMaxDeadline") && ($("sideMaxDeadline").textContent = "3.0 hrs max");
+  $("executiveHeadline") && ($("executiveHeadline").textContent = "CNC Production Line 4 is down.");
+  $("briefDecisionHeadline") && ($("briefDecisionHeadline").textContent = "Recommended: split source with Supplier C + Supplier D");
 
   clearInterval(costTicker);
   $("incCost") && ($("incCost").textContent = "₹0");
@@ -1183,16 +1208,34 @@ function render(data) {
     $("recapExposure") && ($("recapExposure").textContent = money(p.total_exposure));
     if (runId) loadActionPackage(runId);
 
+    // Update Right-Side Executive Impact Column
+    $("sideLossRate") && ($("sideLossRate").textContent = `${money(data.request?.downtime_cost_per_hour || 5000)}/hr`);
+    $("sideRecoveryTime") && ($("sideRecoveryTime").textContent = `${p.recovery_time_hours} hrs`);
+    $("sideTotalExposure") && ($("sideTotalExposure").textContent = money(p.total_exposure));
+    $("sidePurchaseCost") && ($("sidePurchaseCost").textContent = money(p.total_purchase_cost));
+    $("sideDowntimeLoss") && ($("sideDowntimeLoss").textContent = money(p.downtime_exposure));
+    $("sideMaxDeadline") && ($("sideMaxDeadline").textContent = `${data.request?.max_hours || 3.0} hrs max`);
+    $("executiveHeadline") && ($("executiveHeadline").textContent = `${data.request?.machine || 'CNC Production Line 4'} is down.`);
+    if ($("briefDecisionHeadline") && (p.legs || []).length) {
+      $("briefDecisionHeadline").textContent = `Recommended: split source with ${(p.legs || []).map(l => l.supplier).join(" + ")}`;
+    }
+
     // Update approval buttons
     const appBtn = $("approveBtn");
     if (appBtn) appBtn.disabled = !p.feasible || data.approved;
     const mod4AppBtn = $("mod4ApproveBtn");
     if (mod4AppBtn) mod4AppBtn.disabled = !p.feasible || data.approved;
+    const sideAppBtn = $("sideApproveBtn");
+    if (sideAppBtn) {
+      sideAppBtn.disabled = !p.feasible || data.approved;
+      if (data.approved) sideAppBtn.textContent = "✓ Plan Authorized";
+    }
 
     if (data.approved) {
       $("approvalBadge") && ($("approvalBadge").textContent = "PLAN APPROVED BY OPERATOR", $("approvalBadge").classList.add("active"));
       $("approvalStatusDisplay") && ($("approvalStatusDisplay").textContent = "✓ AUTHORIZED", $("approvalStatusDisplay").classList.add("approved"));
       $("approvalNotice") && ($("approvalNotice").innerHTML = "<b class=\"good\">✓ Plan Authorized by Operator.</b> Logistics dispatch confirmed.");
+      $("sideApprovalStatusText") && ($("sideApprovalStatusText").textContent = "✓ AUTHORIZED", $("sideApprovalStatusText").className = "status-text mono approved");
     }
 
     updateStepperUI();
