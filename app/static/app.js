@@ -1144,6 +1144,9 @@ function render(data) {
     renderSensitivity(data.sensitivity);
     renderCrossRef(data.cross_reference);
     renderTechnicianSchedule(data.technician_schedule);
+    if (runId || data.run_id) {
+      renderCounterfactual(runId || data.run_id);
+    }
 
     // Update Module 4 Recap
     $("recapMachine") && ($("recapMachine").textContent = data.request?.machine || "CNC Line 4");
@@ -1344,6 +1347,73 @@ async function submitChat(evt) {
   return false;
 }
 
+/* ========================================================================= */
+/* PHASE 6: COUNTERFACTUAL & BENCHMARK FUNCTIONS                            */
+/* ========================================================================= */
+async function renderCounterfactual(targetRunId) {
+  if (!targetRunId) return;
+  try {
+    const r = await fetch(`/api/recovery/${targetRunId}/counterfactual`);
+    if (!r.ok) return;
+    const cf = await readJsonResponse(r);
+    
+    // 1. RestartAI
+    const rPlan = cf.restartai_plan || {};
+    if ($("cfRestartPurchase")) $("cfRestartPurchase").textContent = money(rPlan.purchase_cost);
+    if ($("cfRestartRecovery")) $("cfRestartRecovery").textContent = `${rPlan.recovery_time_hours} hours`;
+    if ($("cfRestartDowntime")) $("cfRestartDowntime").textContent = money(rPlan.total_exposure - rPlan.purchase_cost);
+    if ($("cfRestartExposure")) $("cfRestartExposure").textContent = money(rPlan.total_exposure);
+
+    // 2. Fastest Single
+    const fPlan = cf.counterfactual_fastest_single || {};
+    if ($("cfFastestPurchase")) $("cfFastestPurchase").textContent = money(fPlan.purchase_cost);
+    if ($("cfFastestRecovery")) $("cfFastestRecovery").textContent = `${fPlan.recovery_time_hours} hours`;
+    if ($("cfFastestDowntime")) $("cfFastestDowntime").textContent = money(fPlan.total_exposure - fPlan.purchase_cost);
+    if ($("cfFastestExposure")) $("cfFastestExposure").textContent = money(fPlan.total_exposure);
+    if ($("cfFastestVerdict") && fPlan.verdict) {
+      $("cfFastestVerdict").innerHTML = `<b>SUBOPTIMAL SINGLE-SOURCE:</b> ${esc(fPlan.verdict)}`;
+    }
+
+    // 3. Cheapest First
+    const cPlan = cf.counterfactual_cheapest_first || {};
+    if ($("cfCheapestPurchase")) $("cfCheapestPurchase").textContent = `${money(cPlan.purchase_cost)} (Saves ${money(rPlan.purchase_cost - cPlan.purchase_cost)})`;
+    if ($("cfCheapestRecovery")) $("cfCheapestRecovery").textContent = `${cPlan.recovery_time_hours} hours`;
+    if ($("cfCheapestDowntime")) $("cfCheapestDowntime").textContent = money(cPlan.total_exposure - cPlan.purchase_cost);
+    if ($("cfCheapestExposure")) $("cfCheapestExposure").textContent = money(cPlan.total_exposure);
+    if ($("cfCheapestVerdict") && cPlan.verdict) {
+      $("cfCheapestVerdict").innerHTML = `<b>DISASTROUS SOURCING DEFAULT:</b> ${esc(cPlan.verdict)}`;
+    }
+  } catch (e) {
+    console.warn("Failed to load counterfactual analysis:", e);
+  }
+}
+
+async function loadBenchmarkSummary() {
+  try {
+    const r = await fetch('/api/benchmark/summary');
+    if (!r.ok) return;
+    const data = await readJsonResponse(r);
+    const kpis = data.kpis || {};
+    const rKpi = kpis.restartai || {};
+    const fKpi = kpis.fastest_single || {};
+    const cKpi = kpis.cheapest_first || {};
+
+    if ($("bmRestartOnTime")) $("bmRestartOnTime").textContent = `${rKpi.on_time_recovery_rate}%`;
+    if ($("bmFastestOnTime")) $("bmFastestOnTime").textContent = `${fKpi.on_time_recovery_rate}%`;
+    if ($("bmCheapestOnTime")) $("bmCheapestOnTime").textContent = `${cKpi.on_time_recovery_rate}%`;
+
+    if ($("bmRestartExp")) $("bmRestartExp").textContent = money(rKpi.avg_total_exposure);
+    if ($("bmFastestExp")) $("bmFastestExp").textContent = `${money(fKpi.avg_total_exposure)} (+${Math.round(((fKpi.avg_total_exposure - rKpi.avg_total_exposure)/rKpi.avg_total_exposure)*100)}%)`;
+    if ($("bmCheapestExp")) $("bmCheapestExp").textContent = `${money(cKpi.avg_total_exposure)} (+${Math.round(((cKpi.avg_total_exposure - rKpi.avg_total_exposure)/rKpi.avg_total_exposure)*100)}%)`;
+
+    if ($("bmRestartTime")) $("bmRestartTime").textContent = `${rKpi.avg_recovery_time_hours} hrs`;
+    if ($("bmFastestTime")) $("bmFastestTime").textContent = `${fKpi.avg_recovery_time_hours} hrs`;
+    if ($("bmCheapestTime")) $("bmCheapestTime").textContent = `${cKpi.avg_recovery_time_hours} hrs`;
+  } catch (e) {
+    console.warn("Failed to load benchmark summary:", e);
+  }
+}
+
 // Dummy backward-compatible helpers
 function maskPhone(p) { return p; }
 function pollTestCall() {}
@@ -1352,3 +1422,4 @@ function diagnosticHtml() { return ""; }
 // Initialize app
 loadConfig();
 restoreSession();
+loadBenchmarkSummary();

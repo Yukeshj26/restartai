@@ -2482,5 +2482,296 @@ button.secondary:hover:not(:disabled) {
   font-size: 11px;
 }
 
+/* ========================================================================= */
+/* PHASE 6: COUNTERFACTUAL PROCUREMENT EXPLAINER                             */
+/* ========================================================================= */
+.counterfactual-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.cf-banner-pitch {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.12) 0%, rgba(17, 24, 39, 0.4) 100%);
+  border-left: 3px solid var(--orange);
+  padding: 12px 18px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.pitch-quote {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  font-style: italic;
+  letter-spacing: 0.2px;
+}
+
+.counterfactual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .counterfactual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cf-card {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.cf-card.optimal {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, var(--panel-raised) 100%);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
+}
+
+.cf-card.courier {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.03) 0%, var(--panel-raised) 100%);
+}
+
+.cf-card.disaster {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, var(--panel-raised) 100%);
+}
+
+.cf-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cf-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.cf-badge.optimal {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cf-badge.courier {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.cf-badge.disaster {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.cf-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cf-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line-soft);
+}
+
+.cf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cf-stat .lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.cf-stat .val {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cf-stat.highlight .val {
+  color: var(--green);
+}
+
+.cf-stat.warning .val {
+  color: var(--amber);
+}
+
+.cf-stat.danger .val {
+  color: var(--red);
+}
+
+.cf-verdict {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: auto;
+}
+
+.cf-verdict.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #a7f3d0;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.cf-verdict.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.cf-verdict.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ========================================================================= */
+/* PHASE 6: SYNTHETIC BENCHMARK DASHBOARD PANEL                              */
+/* ========================================================================= */
+.benchmark-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.badge-benchmark {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--orange);
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.benchmark-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .benchmark-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.benchmark-card {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.benchmark-card.highlight {
+  border-color: rgba(249, 115, 22, 0.4);
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.04) 0%, var(--panel-raised) 100%);
+}
+
+.benchmark-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--orange);
+  margin-bottom: 4px;
+}
+
+.benchmark-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 12px 0;
+}
+
+.kpi-comparison-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.kpi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+
+.kpi-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.kpi-val {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.kpi-val.success { color: var(--green); }
+.kpi-val.warning { color: var(--amber); }
+.kpi-val.danger  { color: var(--red); }
+
+.benchmark-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin-top: auto;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+
+.benchmark-disclaimer {
+  margin-top: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed var(--line-highlight);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.benchmark-disclaimer b {
+  color: var(--orange);
+}
+
 
 

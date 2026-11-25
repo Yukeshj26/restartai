@@ -4,6 +4,7 @@ from .storage_service import StorageService
 from .asset_service import AssetService
 from .supplier_registry_service import SupplierRegistryService
 from .action_service import ActionService
+from .benchmark_service import BenchmarkService
 
 __all__ = [
     "CalleService",
@@ -15,4 +16,5 @@ __all__ = [
     "AssetService",
     "SupplierRegistryService",
     "ActionService",
+    "BenchmarkService",
 ]

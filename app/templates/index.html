@@ -575,6 +575,114 @@
         </div>
       </div>
 
+      <!-- Counterfactual Explainer Panel: What if we picked the cheapest supplier? -->
+      <div id="counterfactualPanel" class="panel counterfactual-panel">
+        <div class="row-head">
+          <div>
+            <div class="eyebrow" style="color:var(--orange);">MODULE 06 · COUNTERFACTUAL PROCUREMENT AUDIT</div>
+            <h2>What If We Picked The Cheapest Supplier?</h2>
+            <p class="hint">Direct economic comparison against conventional procurement heuristics on this incident.</p>
+          </div>
+          <span class="pill-recommended">ALGORITHMIC COMPARISON</span>
+        </div>
+
+        <div class="cf-banner-pitch">
+          <span class="pitch-quote">“We did not find the cheapest supplier. We found the fastest feasible way to restart production.”</span>
+        </div>
+
+        <div class="counterfactual-grid">
+          <!-- Card 1: RestartAI (Split Strategy) -->
+          <div class="cf-card optimal">
+            <div class="cf-card-header">
+              <span class="cf-badge optimal">RESTARTAI (OPTIMAL SPLIT)</span>
+              <span class="cf-status-pill success">✓ Line Restarts T+2.0h</span>
+            </div>
+            <div class="cf-title">Supplier C (8) + Supplier D (12)</div>
+            <div class="cf-stats">
+              <div class="cf-stat">
+                <span class="lbl">PURCHASE OUTLAY</span>
+                <span id="cfRestartPurchase" class="val mono">₹3,720</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">RECOVERY TIME</span>
+                <span id="cfRestartRecovery" class="val mono">2.0 hours</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">DOWNTIME LOSS</span>
+                <span id="cfRestartDowntime" class="val mono">₹10,000</span>
+              </div>
+              <div class="cf-stat highlight">
+                <span class="lbl">TOTAL EXPOSURE</span>
+                <span id="cfRestartExposure" class="val mono">₹13,720</span>
+              </div>
+            </div>
+            <div class="cf-verdict success">
+              <b>OPTIMAL ECONOMIC SOLUTION:</b> Meets 3.0h deadline with lowest total economic exposure. Dispatches courier for C & freight for D simultaneously.
+            </div>
+          </div>
+
+          <!-- Card 2: Fastest-Single Courier (Supplier B) -->
+          <div class="cf-card courier">
+            <div class="cf-card-header">
+              <span class="cf-badge courier">FASTEST-SINGLE SUPPLIER</span>
+              <span class="cf-status-pill warning">+0.5h Delay (+₹3,180)</span>
+            </div>
+            <div class="cf-title">Supplier B Alone (20 units)</div>
+            <div class="cf-stats">
+              <div class="cf-stat">
+                <span class="lbl">PURCHASE OUTLAY</span>
+                <span id="cfFastestPurchase" class="val mono">₹4,400</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">RECOVERY TIME</span>
+                <span id="cfFastestRecovery" class="val mono">2.5 hours</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">DOWNTIME LOSS</span>
+                <span id="cfFastestDowntime" class="val mono">₹12,500</span>
+              </div>
+              <div class="cf-stat warning">
+                <span class="lbl">TOTAL EXPOSURE</span>
+                <span id="cfFastestExposure" class="val mono">₹16,900</span>
+              </div>
+            </div>
+            <div id="cfFastestVerdict" class="cf-verdict warning">
+              <b>SUBOPTIMAL SINGLE-SOURCE:</b> Satisfies the 3.0h deadline, but incurs ₹680 higher purchase price and 30m extra factory downtime (+₹3,180 penalty vs RestartAI).
+            </div>
+          </div>
+
+          <!-- Card 3: Cheapest-First (Supplier A) -->
+          <div class="cf-card disaster">
+            <div class="cf-card-header">
+              <span class="cf-badge disaster">CHEAPEST-FIRST HEURISTIC</span>
+              <span class="cf-status-pill danger">🚨 DEADLINE BREACH (+21.5h)</span>
+            </div>
+            <div class="cf-title">Supplier A Alone (20 units)</div>
+            <div class="cf-stats">
+              <div class="cf-stat">
+                <span class="lbl">PURCHASE OUTLAY</span>
+                <span id="cfCheapestPurchase" class="val mono good">₹3,000 (Saves ₹720)</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">RECOVERY TIME</span>
+                <span id="cfCheapestRecovery" class="val mono danger">24.5 hours</span>
+              </div>
+              <div class="cf-stat">
+                <span class="lbl">DOWNTIME LOSS</span>
+                <span id="cfCheapestDowntime" class="val mono danger">₹122,500</span>
+              </div>
+              <div class="cf-stat danger">
+                <span class="lbl">TOTAL EXPOSURE</span>
+                <span id="cfCheapestExposure" class="val mono danger">₹125,500</span>
+              </div>
+            </div>
+            <div id="cfCheapestVerdict" class="cf-verdict danger">
+              <b>DISASTROUS SOURCING DEFAULT:</b> Saving ₹720 on purchase caused a 24.5-hour shutdown, generating ₹122,500 in downtime losses and an <b>extra ₹111,780 economic penalty</b>.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Comparison of Alternatives Considered -->
       <div class="panel alternatives-panel">
         <div class="row-head">
@@ -780,6 +888,87 @@
           <h4>SAP PM / IBM Maximo Ticket JSON</h4>
           <pre id="cmmsTicketText" class="action-pre">Awaiting plan authorization...</pre>
         </div>
+      </div>
+    </div>
+
+    <!-- PHASE 6: SYNTHETIC BENCHMARK COMPARATIVE DASHBOARD -->
+    <div id="syntheticBenchmarkPanel" class="panel benchmark-panel">
+      <div class="row-head">
+        <div>
+          <div class="eyebrow" style="color:var(--orange);">MODULE 06 · EMPIRICAL ALGORITHM BENCHMARK</div>
+          <h2>Multi-Strategy Benchmark Across 35 Synthetic Incidents</h2>
+          <p class="hint">Rigorous algorithmic comparison across 35 seeded manufacturing breakdowns and 7 machinery classes.</p>
+        </div>
+        <span class="badge-benchmark">SYNTHETIC BENCHMARK · SEED 42</span>
+      </div>
+
+      <div class="benchmark-kpi-grid">
+        <!-- Metric 1: On-Time Recovery Rate -->
+        <div class="benchmark-card highlight">
+          <span class="benchmark-tag">SUCCESS RATE</span>
+          <h4>On-Time Recovery (Within Deadline)</h4>
+          <div class="kpi-comparison-rows">
+            <div class="kpi-row">
+              <span class="kpi-name">RestartAI</span>
+              <span id="bmRestartOnTime" class="kpi-val mono success">80.0%</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Fastest-Single</span>
+              <span id="bmFastestOnTime" class="kpi-val mono warning">60.0%</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Cheapest-First</span>
+              <span id="bmCheapestOnTime" class="kpi-val mono danger">0.0%</span>
+            </div>
+          </div>
+          <span class="benchmark-note">RestartAI achieves +80% higher on-time recovery than naive cheapest-first procurement.</span>
+        </div>
+
+        <!-- Metric 2: Average Economic Exposure -->
+        <div class="benchmark-card">
+          <span class="benchmark-tag">AVERAGE LOSS</span>
+          <h4>Mean Total Economic Exposure</h4>
+          <div class="kpi-comparison-rows">
+            <div class="kpi-row">
+              <span class="kpi-name">RestartAI</span>
+              <span id="bmRestartExp" class="kpi-val mono success">₹19,467</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Fastest-Single</span>
+              <span id="bmFastestExp" class="kpi-val mono warning">₹34,047 (+75%)</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Cheapest-First</span>
+              <span id="bmCheapestExp" class="kpi-val mono danger">₹144,159 (+640%)</span>
+            </div>
+          </div>
+          <span class="benchmark-note">RestartAI delivers ₹124,692 lower average loss per incident vs standard procurement.</span>
+        </div>
+
+        <!-- Metric 3: Average Recovery Time -->
+        <div class="benchmark-card">
+          <span class="benchmark-tag">SPEED & DOWNTIME</span>
+          <h4>Mean Production Downtime</h4>
+          <div class="kpi-comparison-rows">
+            <div class="kpi-row">
+              <span class="kpi-name">RestartAI</span>
+              <span id="bmRestartTime" class="kpi-val mono success">2.34 hrs</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Fastest-Single</span>
+              <span id="bmFastestTime" class="kpi-val mono warning">4.53 hrs</span>
+            </div>
+            <div class="kpi-row">
+              <span class="kpi-name">Cheapest-First</span>
+              <span id="bmCheapestTime" class="kpi-val mono danger">22.60 hrs</span>
+            </div>
+          </div>
+          <span class="benchmark-note">Split-sourcing avoids next-day freight delays and partial stockouts.</span>
+        </div>
+      </div>
+
+      <div class="benchmark-disclaimer">
+        ℹ️ <b>LABEL: SYNTHETIC BENCHMARK.</b> Simulated across 35 seeded manufacturing breakdown scenarios (CNC lines, injection molders, stamping presses, packaging conveyors, SMT placers). Evaluates multi-supplier split optimization against heuristic baselines.
       </div>
     </div>
 

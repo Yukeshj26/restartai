@@ -11,6 +11,7 @@ from ..services.llm_service import LlmService, LlmError
 from ..services.storage_service import StorageService
 from ..services.asset_service import AssetService
 from ..services.action_service import ActionService
+from ..services.benchmark_service import BenchmarkService
 
 router = APIRouter(prefix="/api")
 
@@ -20,6 +21,7 @@ llm_service = LlmService()
 storage_service = StorageService()
 asset_service = AssetService()
 action_service = ActionService()
+benchmark_service = BenchmarkService()
 
 
 @router.get("/health")
@@ -245,6 +247,24 @@ def get_mobile_approver_api(run_id: str):
     if not result:
         return HTMLResponse("<h1>Recovery Run Not Found</h1>", status_code=404)
     return HTMLResponse(content=action_service.render_mobile_approver_html(result))
+
+
+@router.get("/benchmark/summary")
+def get_benchmark_summary():
+    return JSONResponse(benchmark_service.get_summary())
+
+
+@router.get("/benchmark/incidents")
+def get_benchmark_incidents():
+    return JSONResponse(benchmark_service._cached_results.get("detailed_incidents", []))
+
+
+@router.get("/recovery/{run_id}/counterfactual")
+def get_recovery_counterfactual(run_id: str):
+    result = engine.get(run_id)
+    if not result:
+        return JSONResponse({"error": "Recovery run not found."}, status_code=404)
+    return JSONResponse(benchmark_service.get_counterfactual(result))
 
 
 @router.get("/config/llm")
