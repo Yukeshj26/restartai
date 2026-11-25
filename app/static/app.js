@@ -179,6 +179,115 @@ window.addEventListener("hashchange", () => {
 /* ========================================================================= */
 /* MODULE 1: INCIDENT SETUP & DEMO SCENARIO                                  */
 /* ========================================================================= */
+async function onAssetSelected(machineId) {
+  clearError();
+  try {
+    const res = await fetch(`/api/assets/${encodeURIComponent(machineId)}`);
+    const machine = await readJsonResponse(res);
+    const part = (machine.parts && machine.parts[0]) || {};
+    
+    $("machine").value = machine.name || "";
+    $("part").value = part.part_number || "";
+    $("desc").value = part.part_description || "";
+    $("qty").value = part.default_quantity || 1;
+    $("maxHours").value = machine.default_max_recovery_hours || 3.0;
+    $("downtime").value = machine.downtime_cost_per_hour || 5000;
+    $("techs").value = machine.default_technicians || 2;
+    $("techOverride").value = "";
+    $("installOverride").value = "";
+    $("compat").value = part.compatibility_notes || "";
+
+    scheduleMaintenanceIntelligence();
+    logActivity(`asset_selected machine="${machine.name}" part="${part.part_number}"`);
+  } catch (err) {
+    showError(`Failed to load asset specs: ${err.message}`);
+  }
+}
+
+async function simulateMachineFault(autoStart = false) {
+  clearError();
+  const machineId = $("assetSelector") ? $("assetSelector").value : "cnc-line-4";
+  const btn = autoStart ? $("btnSimulateAndRecover") : $("btnSimulateFault");
+  const origText = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="btn-icon">⏳</span> Ingesting Telemetry...`;
+  }
+
+  try {
+    const res = await fetch("/api/events/fault", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        machine_id: machineId,
+        auto_start: autoStart,
+        mode: $("mode").value
+      })
+    });
+    const data = await readJsonResponse(res);
+
+    // 1. Populate form fields
+    const inc = data.incident;
+    if (inc) {
+      $("machine").value = inc.machine || "";
+      $("part").value = inc.part_number || "";
+      $("desc").value = inc.part_description || "";
+      $("qty").value = inc.quantity || 1;
+      $("maxHours").value = inc.max_hours || 3.0;
+      $("downtime").value = inc.downtime_cost_per_hour || 5000;
+      $("techs").value = inc.available_technicians || 3;
+      $("compat").value = inc.compatibility_notes || "";
+      scheduleMaintenanceIntelligence();
+    }
+
+    // 2. Render Incoming Telemetry Banner
+    const banner = $("incomingFaultBanner");
+    if (banner && data.event) {
+      banner.classList.remove("hidden");
+      $("faultEventTime").textContent = new Date(data.event.created_at).toLocaleTimeString();
+      $("faultMachineName").textContent = data.event.machine_name;
+      $("faultSensorId").textContent = data.event.sensor_id;
+      $("faultTelemetry").textContent = `${data.event.telemetry_value} mm/s (${data.event.telemetry_metric})`;
+      $("faultCode").textContent = data.event.fault_code;
+      $("faultDescription").textContent = data.event.message;
+      $("faultPartResolved").textContent = `${inc.part_number} (${inc.part_description}) · ${inc.quantity} units`;
+      $("faultCriticality").textContent = `CRITICAL (₹${Number(inc.downtime_cost_per_hour).toLocaleString()}/hr)`;
+    }
+
+    logActivity(`telemetry_fault_ingested machine="${data.event.machine_name}" sensor="${data.event.sensor_id}" code="${data.event.fault_code}"`);
+
+    // 3. Flow directly into recovery if autoStart is true
+    if (autoStart && data.run_id && data.recovery) {
+      runId = data.run_id;
+      sessionStorage.setItem("restartai_run_id", runId);
+
+      $("stage").textContent = "CALLING";
+      $("stage").classList.add("active");
+      if ($("startBtn")) $("startBtn").disabled = true;
+
+      $("incidentHeader").classList.remove("hidden");
+      $("incMachine").textContent = inc.machine || "—";
+      $("incPart").textContent = `${inc.part_number} × ${inc.quantity}`;
+      $("incQty").textContent = `${inc.quantity} units`;
+      $("incDeadline").textContent = `${inc.max_hours}h max`;
+      startCostTicker(inc.downtime_cost_per_hour);
+
+      render(data.recovery);
+      navigate("#/calls");
+    } else {
+      // Smooth scroll to fields to let user verify
+      $("machine").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  } catch (err) {
+    showError(`Sensor trigger error: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  }
+}
+
 function loadDemoScenario() {
   clearError();
   $("machine").value = "CNC Production Line 4";

@@ -7,6 +7,7 @@ from .models import (
     Offer,
     PlanLeg,
     RecoveryPlan,
+    FaultEventRequest,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "Offer",
     "PlanLeg",
     "RecoveryPlan",
+    "FaultEventRequest",
 ]

@@ -238,9 +238,39 @@ class StorageService:
                 for r in rows
             ]
 
+    def save_fault_event(self, event: Dict[str, Any]) -> None:
+        now = self._now()
+        with get_db(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO fault_events (
+                    event_id, machine_id, machine_name, sensor_id, fault_code, severity, payload_json, run_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event["event_id"],
+                    event.get("machine_id", ""),
+                    event.get("machine_name", ""),
+                    event.get("sensor_id", ""),
+                    event.get("fault_code", ""),
+                    event.get("severity", "critical"),
+                    json.dumps(event),
+                    event.get("run_id"),
+                    event.get("created_at", now),
+                )
+            )
+
+    def list_fault_events(self, limit: int = 20) -> List[Dict[str, Any]]:
+        with get_db(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT payload_json FROM fault_events ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+            return [json.loads(r["payload_json"]) for r in rows]
+
     def clear(self) -> None:
         """Testing utility to clear state."""
         with get_db(self.db_path) as conn:
+            conn.execute("DELETE FROM fault_events")
             conn.execute("DELETE FROM idempotency")
             conn.execute("DELETE FROM audit_logs")
             conn.execute("DELETE FROM calls")

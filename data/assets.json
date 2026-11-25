@@ -1,0 +1,182 @@
+{
+  "machines": [
+    {
+      "id": "cnc-line-4",
+      "name": "CNC Production Line 4",
+      "location": "Bay 2 - Precision Machining",
+      "criticality": "CRITICAL",
+      "downtime_cost_per_hour": 5000.0,
+      "default_max_recovery_hours": 3.0,
+      "default_technicians": 3,
+      "sensor": {
+        "sensor_id": "VIB-ACCEL-04",
+        "type": "Vibration & Accelerometer Sensor",
+        "metric": "spindle_vibration_rms_mm_s",
+        "normal_value": 1.8,
+        "fault_threshold": 7.0,
+        "simulated_fault_value": 8.4,
+        "default_fault_code": "ERR-VIB-SPINDLE-6205",
+        "default_fault_message": "Vibration anomaly detected on spindle bearing axis Z (RMS 8.4 mm/s > 7.0 mm/s limit). Immediate seizure risk."
+      },
+      "parts": [
+        {
+          "part_number": "SKF 6205-2RS",
+          "part_description": "Deep-groove ball bearing",
+          "is_primary": true,
+          "default_quantity": 20,
+          "spec": "25mm bore, 52mm OD, 15mm width, nitrile rubber seals, dynamic load rating 14.8 kN",
+          "compatibility_notes": "6205-2RS rubber contact seal",
+          "equivalents": [
+            {
+              "brand": "FAG",
+              "part_number": "6205-2RSR",
+              "compatibility_confidence": 0.98,
+              "notes": "Direct form-fit-function replacement"
+            },
+            {
+              "brand": "NSK",
+              "part_number": "6205-DDU",
+              "compatibility_confidence": 0.98,
+              "notes": "Direct form-fit-function replacement"
+            },
+            {
+              "brand": "NTN",
+              "part_number": "6205-LLU",
+              "compatibility_confidence": 0.97,
+              "notes": "High-grade contact seal replacement"
+            }
+          ]
+        }
+      ],
+      "default_suppliers": [
+        {"name": "Supplier A", "phone": "+919876543211", "region": "IN"},
+        {"name": "Supplier B", "phone": "+919876543212", "region": "IN"},
+        {"name": "Supplier C", "phone": "+919876543213", "region": "IN"},
+        {"name": "Supplier D", "phone": "+919876543214", "region": "IN"}
+      ]
+    },
+    {
+      "id": "inj-mold-02",
+      "name": "Injection Molding Machine 02",
+      "location": "Bay 1 - Plastics & Forming",
+      "criticality": "HIGH",
+      "downtime_cost_per_hour": 3500.0,
+      "default_max_recovery_hours": 4.0,
+      "default_technicians": 2,
+      "sensor": {
+        "sensor_id": "TEMP-ZONE-02",
+        "type": "Barrel Thermal Zone 2 RTD",
+        "metric": "barrel_temperature_celsius",
+        "normal_value": 240.0,
+        "fault_threshold": 290.0,
+        "simulated_fault_value": 312.0,
+        "default_fault_code": "ERR-TEMP-HEATBAND-02",
+        "default_fault_message": "Barrel heater band temperature runaway in Zone 2 (312°C). Element degradation detected."
+      },
+      "parts": [
+        {
+          "part_number": "HEATER-BAND-400W",
+          "part_description": "Ceramic band heater 60x50mm 230V 400W",
+          "is_primary": true,
+          "default_quantity": 4,
+          "spec": "60mm ID, 50mm width, 230V 400W mica-ceramic insulation, screw terminals",
+          "compatibility_notes": "60mm ID band heater with thermocouple clearance",
+          "equivalents": [
+            {
+              "brand": "WATT",
+              "part_number": "WATT-CBH-400",
+              "compatibility_confidence": 0.95,
+              "notes": "Drop-in ceramic band replacement"
+            }
+          ]
+        }
+      ],
+      "default_suppliers": [
+        {"name": "Supplier A", "phone": "+919876543211", "region": "IN"},
+        {"name": "Supplier B", "phone": "+919876543212", "region": "IN"}
+      ]
+    },
+    {
+      "id": "press-p-12",
+      "name": "Stamping Press P-12",
+      "location": "Bay 3 - Heavy Stamping",
+      "criticality": "CRITICAL",
+      "downtime_cost_per_hour": 8000.0,
+      "default_max_recovery_hours": 2.5,
+      "default_technicians": 2,
+      "sensor": {
+        "sensor_id": "HYD-PRESS-12",
+        "type": "Hydraulic Main Ram Pressure Transducer",
+        "metric": "pressure_drop_bar",
+        "normal_value": 5.0,
+        "fault_threshold": 60.0,
+        "simulated_fault_value": 78.0,
+        "default_fault_code": "ERR-HYD-SEAL-BLOWOUT",
+        "default_fault_message": "Main ram hydraulic pressure collapse (78 bar drop). Cylinder rod seal blowout detected."
+      },
+      "parts": [
+        {
+          "part_number": "SEAL-KIT-HYD-80",
+          "part_description": "Hydraulic cylinder seal kit 80mm bore",
+          "is_primary": true,
+          "default_quantity": 2,
+          "spec": "80mm bore, polyurethane U-cup rod seal, nitrile wiper, PTFE guide rings",
+          "compatibility_notes": "80mm bore cylinder seal kit",
+          "equivalents": [
+            {
+              "brand": "Parker",
+              "part_number": "PARKER-PK-80",
+              "compatibility_confidence": 0.99,
+              "notes": "Parker Hannifin OEM equivalent"
+            }
+          ]
+        }
+      ],
+      "default_suppliers": [
+        {"name": "Supplier A", "phone": "+919876543211", "region": "IN"},
+        {"name": "Supplier B", "phone": "+919876543212", "region": "IN"}
+      ]
+    },
+    {
+      "id": "pack-conv-1",
+      "name": "Packaging Line Conveyor C-1",
+      "location": "Bay 4 - Packaging & Dispatch",
+      "criticality": "MEDIUM",
+      "downtime_cost_per_hour": 2000.0,
+      "default_max_recovery_hours": 5.0,
+      "default_technicians": 1,
+      "sensor": {
+        "sensor_id": "OPT-SENS-01",
+        "type": "Optical Carton Diverter Proximity",
+        "metric": "beam_attenuation_pct",
+        "normal_value": 15.0,
+        "fault_threshold": 90.0,
+        "simulated_fault_value": 98.0,
+        "default_fault_code": "ERR-OPT-BEAM-BLOCKED",
+        "default_fault_message": "Optical diverter sensor failure (98% attenuation). Receiver optics dead, divert line halted."
+      },
+      "parts": [
+        {
+          "part_number": "OPTICAL-SENSOR-M18",
+          "part_description": "Photoelectric proximity sensor M18 PNP NO",
+          "is_primary": true,
+          "default_quantity": 1,
+          "spec": "M18 threaded barrel, 10-30VDC, PNP normally open, diffuse 300mm range",
+          "compatibility_notes": "M18 PNP NO diffuse photoelectric sensor",
+          "equivalents": [
+            {
+              "brand": "Omron",
+              "part_number": "OMRON-E3F-DS30",
+              "compatibility_confidence": 0.99,
+              "notes": "Direct drop-in industrial equivalent"
+            }
+          ]
+        }
+      ],
+      "default_suppliers": [
+        {"name": "Supplier A", "phone": "+919876543211", "region": "IN"},
+        {"name": "Supplier B", "phone": "+919876543212", "region": "IN"}
+      ]
+    }
+  ]
+}

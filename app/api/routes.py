@@ -1,12 +1,15 @@
 """API routes for RestartAI."""
+import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
-from ..models import RecoveryRequest, TestCallRequest, ChatRequest
+from ..models import RecoveryRequest, TestCallRequest, ChatRequest, FaultEventRequest
 from ..engine.recovery_engine import RecoveryEngine
 from ..services.call_e_service import CalleService, CallEError
 from ..services.llm_service import LlmService, LlmError
 from ..services.storage_service import StorageService
+from ..services.asset_service import AssetService
 
 router = APIRouter(prefix="/api")
 
@@ -14,11 +17,103 @@ calle_service = CalleService()
 engine = RecoveryEngine(calle_service)
 llm_service = LlmService()
 storage_service = StorageService()
+asset_service = AssetService()
 
 
 @router.get("/health")
 def health():
     return {"status": "ok", "service": "RestartAI", "mode": calle_service.mode}
+
+
+@router.get("/assets")
+def list_assets():
+    return {"machines": asset_service.list_machines()}
+
+
+@router.get("/assets/{machine_id}")
+def get_asset(machine_id: str):
+    machine = asset_service.get_machine(machine_id)
+    if not machine:
+        return JSONResponse({"error": f"Machine '{machine_id}' not found."}, status_code=404)
+    return JSONResponse(machine)
+
+
+@router.get("/events/faults")
+def list_fault_events(limit: int = Query(default=20, ge=1, le=100)):
+    events = storage_service.list_fault_events(limit=limit)
+    return JSONResponse({"events": events})
+
+
+@router.post("/events/fault")
+async def trigger_fault_event(payload: FaultEventRequest):
+    machine = asset_service.get_machine(payload.machine_id)
+    if not machine:
+        return JSONResponse({"error": f"Machine '{payload.machine_id}' not found in asset registry."}, status_code=404)
+
+    sensor = machine.get("sensor", {})
+    event_id = f"evt-{uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    telemetry = payload.telemetry_value or sensor.get("simulated_fault_value", 8.4)
+    fault_code = payload.fault_code or sensor.get("default_fault_code", "ERR-FAULT-DETECTED")
+    message = payload.message or sensor.get("default_fault_message", f"Abnormal condition on {machine['name']}")
+
+    event = {
+        "event_id": event_id,
+        "machine_id": machine["id"],
+        "machine_name": machine["name"],
+        "sensor_id": payload.sensor_id or sensor.get("sensor_id", "SENSOR-UNKNOWN"),
+        "sensor_type": sensor.get("type", "Telemetry"),
+        "telemetry_metric": sensor.get("metric", "signal"),
+        "telemetry_value": telemetry,
+        "normal_threshold": sensor.get("normal_value"),
+        "fault_threshold": sensor.get("fault_threshold"),
+        "fault_code": fault_code,
+        "severity": payload.severity,
+        "message": message,
+        "created_at": now,
+        "run_id": None,
+    }
+
+    overrides = {
+        "mode": payload.mode,
+    }
+    if payload.quantity is not None:
+        overrides["quantity"] = payload.quantity
+    if payload.max_hours is not None:
+        overrides["max_hours"] = payload.max_hours
+    if payload.downtime_cost_per_hour is not None:
+        overrides["downtime_cost_per_hour"] = payload.downtime_cost_per_hour
+    if payload.available_technicians is not None:
+        overrides["available_technicians"] = payload.available_technicians
+
+    req = asset_service.build_recovery_request(machine["id"], overrides)
+
+    if payload.auto_start:
+        use_live = (payload.mode == "live") if payload.mode else (calle_service.mode == "live")
+        result = await engine.start_async(req) if use_live else engine.start(req)
+        event["run_id"] = result["run_id"]
+        storage_service.save_fault_event(event)
+        storage_service.add_audit_log(
+            result["run_id"],
+            "sensor_fault_event",
+            f"Automated trigger from sensor {event['sensor_id']} on {machine['name']}: {fault_code}",
+            event,
+        )
+        return JSONResponse({
+            "success": True,
+            "event": event,
+            "incident": req.model_dump(),
+            "run_id": result["run_id"],
+            "recovery": result,
+        })
+    else:
+        storage_service.save_fault_event(event)
+        return JSONResponse({
+            "success": True,
+            "event": event,
+            "incident": req.model_dump(),
+        })
 
 
 @router.get("/config")

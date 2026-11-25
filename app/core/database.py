@@ -82,10 +82,23 @@ CREATE TABLE IF NOT EXISTS idempotency (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS fault_events (
+    event_id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL,
+    machine_name TEXT NOT NULL,
+    sensor_id TEXT NOT NULL,
+    fault_code TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    run_id TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_offers_run_id ON offers(run_id);
 CREATE INDEX IF NOT EXISTS idx_plans_run_id ON plans(run_id);
 CREATE INDEX IF NOT EXISTS idx_calls_run_id ON calls(run_id);
 CREATE INDEX IF NOT EXISTS idx_audit_run_id ON audit_logs(run_id);
+CREATE INDEX IF NOT EXISTS idx_faults_created ON fault_events(created_at DESC);
 """
 
 

@@ -96,3 +96,19 @@ class RecoveryPlan(BaseModel):
     required_technician_capability: Optional[str] = None
     installation_required: Optional[bool] = None
     technician_status: str = "not configured"
+
+
+class FaultEventRequest(BaseModel):
+    machine_id: str = "cnc-line-4"
+    fault_code: Optional[str] = None
+    sensor_id: Optional[str] = None
+    severity: str = "critical"
+    message: Optional[str] = None
+    telemetry_value: Optional[float] = None
+    auto_start: bool = True
+    mode: str = "demo"
+    quantity: Optional[int] = None
+    max_hours: Optional[float] = None
+    downtime_cost_per_hour: Optional[float] = None
+    available_technicians: Optional[int] = None
+

@@ -128,6 +128,70 @@
       </div>
     </div>
 
+    <!-- SENSE TRIGGER: Asset Registry & Industrial IoT Feed -->
+    <div class="panel sense-panel">
+      <div class="panel-head-with-action">
+        <div>
+          <div class="sense-badge"><span class="pulse-dot"></span> STAGE 1: SENSE · EVENT-DRIVEN IOT TELEMETRY FEED</div>
+          <h2>Factory Asset Registry & Sensor Anomaly Ingestion</h2>
+          <p class="hint">Simulate real-time SCADA/PLC sensor trip. Automatically binds machine asset specifications, downtime exposure rates, and critical spare parts with zero manual data entry.</p>
+        </div>
+        <div class="sense-actions">
+          <button type="button" id="btnSimulateFault" class="btn-fault-trigger" onclick="simulateMachineFault(false)">
+            <span class="btn-icon">⚡</span> Simulate Machine Fault
+          </button>
+          <button type="button" id="btnSimulateAndRecover" class="btn-fault-recover" onclick="simulateMachineFault(true)">
+            <span>⚡ Ingest & Auto-Recover</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="asset-selector-row">
+        <label for="assetSelector">Target Asset (Connected Telemetry Node):</label>
+        <select id="assetSelector" class="asset-select" onchange="onAssetSelected(this.value)">
+          <option value="cnc-line-4" selected>CNC Production Line 4 · CRITICAL (₹5,000/hr) · SKF 6205-2RS [Golden Scenario]</option>
+          <option value="inj-mold-02">Injection Molding Machine 02 · HIGH (₹3,500/hr) · HEATER-BAND-400W</option>
+          <option value="press-p-12">Stamping Press P-12 · CRITICAL (₹8,000/hr) · SEAL-KIT-HYD-80</option>
+          <option value="pack-conv-1">Packaging Line Conveyor C-1 · MEDIUM (₹2,000/hr) · OPTICAL-SENSOR-M18</option>
+        </select>
+      </div>
+
+      <!-- Real-Time Incoming Fault Alert Banner -->
+      <div id="incomingFaultBanner" class="fault-banner hidden">
+        <div class="fault-banner-header">
+          <span class="fault-badge-pulse">🚨 INCOMING TELEMETRY ANOMALY DETECTED</span>
+          <span id="faultEventTime" class="fault-time mono"></span>
+        </div>
+        <div class="fault-banner-body">
+          <div class="fault-metric-grid">
+            <div class="fault-box">
+              <span class="lbl">MACHINE</span>
+              <span id="faultMachineName" class="val mono">CNC Production Line 4</span>
+            </div>
+            <div class="fault-box">
+              <span class="lbl">SENSOR ID</span>
+              <span id="faultSensorId" class="val mono">VIB-ACCEL-04</span>
+            </div>
+            <div class="fault-box">
+              <span class="lbl">TELEMETRY READING</span>
+              <span id="faultTelemetry" class="val mono warn">8.4 mm/s RMS (Limit: 7.0)</span>
+            </div>
+            <div class="fault-box">
+              <span class="lbl">FAULT CODE</span>
+              <span id="faultCode" class="val mono red">ERR-VIB-SPINDLE-6205</span>
+            </div>
+          </div>
+          <div id="faultDescription" class="fault-msg">
+            Vibration anomaly detected on spindle bearing axis Z (RMS 8.4 mm/s > 7.0 mm/s limit). Immediate seizure risk.
+          </div>
+          <div class="fault-footer-strip">
+            <span>Resolved Replacement Part: <strong id="faultPartResolved" class="mono">SKF 6205-2RS (Deep-groove ball bearing)</strong></span>
+            <span>Asset Criticality: <strong id="faultCriticality" class="mono">CRITICAL (₹5,000/hr)</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Incident Form -->
     <div class="panel incident-form-panel">
       <div class="panel-head-with-action">

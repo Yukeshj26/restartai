@@ -1587,3 +1587,210 @@ button.secondary:hover:not(:disabled) {
     width: calc(100vw - 32px);
   }
 }
+
+/* ========================================================================= */
+/* SENSE STAGE & IOT TELEMETRY FEED                                          */
+/* ========================================================================= */
+.sense-panel {
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.05) 0%, rgba(19, 23, 29, 0.95) 100%);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.sense-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--orange-light);
+  margin-bottom: 6px;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 8px var(--orange);
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.sense-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-fault-trigger {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--orange-light);
+  border: 1px solid var(--orange);
+  font-weight: 700;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-fault-trigger:hover {
+  background: var(--orange);
+  color: #090b0e;
+  box-shadow: 0 0 15px var(--orange-glow);
+}
+
+.btn-fault-recover {
+  background: var(--green);
+  color: #052e16;
+  font-weight: 700;
+  border: 1px solid var(--green);
+  padding: 10px 18px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px var(--green-glow);
+  transition: all 0.15s ease;
+}
+
+.btn-fault-recover:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 18px var(--green-glow);
+}
+
+.asset-selector-row {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--panel-raised);
+  border-radius: 6px;
+  border: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+
+.asset-selector-row label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.asset-select {
+  flex: 1;
+  min-width: 280px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.fault-banner {
+  margin-top: 20px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 16px;
+  animation: slide-down 0.25s ease-out;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fault-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  padding-bottom: 8px;
+}
+
+.fault-badge-pulse {
+  color: var(--red);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.fault-time {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.fault-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fault-box {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fault-box .lbl {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.fault-box .val {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fault-box .val.warn {
+  color: var(--amber);
+}
+
+.fault-box .val.red {
+  color: var(--red);
+}
+
+.fault-msg {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid var(--red);
+  margin-bottom: 12px;
+}
+
+.fault-footer-strip {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.fault-footer-strip strong {
+  color: var(--text);
+}
+

@@ -41,10 +41,22 @@ restartai/
 
 ```mermaid
 flowchart LR
-    A[Event: Machine Halt] --> B[Incident Formulation]
-    B --> C[Supplier Quote Collection / CALL-E]
-    C --> D[Deterministic Recovery Planner]
-    D --> E[LLM Plain-English Explanation]
-    E --> F[Human Operator Dashboard]
-    F -->|Approved| G[Action Package Drafts]
+    A[Event: Machine Halt / Sensor Webhook] --> B[Asset Registry Lookup]
+    B --> C[Incident Formulation & Default Suppliers]
+    C --> D[Supplier Quote Collection / CALL-E]
+    D --> E[Deterministic Recovery Planner]
+    E --> F[LLM Plain-English Explanation]
+    F --> G[Human Operator Dashboard]
+    G -->|Approved| H[Action Package Drafts]
 ```
+
+---
+
+## Phase 2 SENSE Layer (Asset Registry & Industrial IoT Webhook)
+
+The SENSE subsystem provides automated ingestion of machine stoppage and sensor telemetry:
+- **Asset Registry (`data/assets.json`)**: Preconfigures plant assets (`CNC Production Line 4`, `Injection Molding Machine 02`, `Stamping Press P-12`, `Packaging Line Conveyor C-1`), their telemetry thresholds, downtime costs, technician requirements, critical replacement parts, specifications, and brand equivalents.
+- **Sensor Webhook (`POST /api/events/fault`)**: Ingests automated telemetry fault payloads from SCADA/PLC systems or the dashboard trigger button.
+- **Incident Formulation**: Automatically resolves machine specs, downtime rate (e.g. ₹5,000/hr), and spare part requirements (e.g. SKF 6205-2RS, qty 20) with zero manual data entry.
+- **Auto-Recovery**: If `auto_start=True`, directly kicks off the recovery dialing workflow and persists the fault event linked to the generated `run_id`.
+
