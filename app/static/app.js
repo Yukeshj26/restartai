@@ -303,6 +303,7 @@ function loadDemoScenario() {
   
   // Set default mode to DEMO
   $("mode").value = "demo";
+  if ($("chaosScenario")) $("chaosScenario").value = "standard";
   updateModeUI();
 
   loadMaintenanceIntelligence();
@@ -404,6 +405,7 @@ async function startRecovery() {
     required_technicians_override: $("techOverride").value ? Number($("techOverride").value) : null,
     installation_minutes_override: $("installOverride").value ? Number($("installOverride").value) : null,
     suppliers: suppliers,
+    chaos_scenario: $("chaosScenario") ? $("chaosScenario").value : "standard",
     live_confirmed: live && $("liveConfirm").checked,
     idempotency_key: `${Date.now()}-${crypto.randomUUID()}`
   };
@@ -804,12 +806,15 @@ function render(data) {
     $("offerRows").innerHTML = '<tr class="empty-row"><td colspan="7">Awaiting supplier responses...</td></tr>';
     $("offerNotes").innerHTML = "";
   } else {
-    $("offerRows").innerHTML = offers.map(o => {
-      const statusClass = /full/i.test(o.status) ? "full" : /partial/i.test(o.status) ? "partial" : "none";
+    $("offerRows").innerHTML = offers.map((o, idx) => {
+      const statusClass = (o.status || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
       const match = o.compatibility_confidence != null ? `<span class="match-badge">${Math.round(o.compatibility_confidence * 100)}% Match</span>` : "—";
       return `<tr>
-        <td><span class="status-dot ${statusClass}"></span><b>${esc(o.supplier)}</b></td>
-        <td><span class="status-label ${statusClass}">${esc(o.status)}</span></td>
+        <td>
+          <span class="status-dot ${statusClass}"></span><b>${esc(o.supplier)}</b>
+          <br><button type="button" class="btn-view-transcript" onclick="openTranscriptModal(${idx})">📄 View Transcript</button>
+        </td>
+        <td><span class="status-badge ${statusClass}">${esc(o.status)}</span></td>
         <td>${match}</td>
         <td class="stock-cell">${o.quantity_available} units</td>
         <td>${money(o.unit_price)}</td>
@@ -910,6 +915,55 @@ function render(data) {
 
     updateStepperUI();
   }
+}
+
+/* ========================================================================= */
+/* TRANSCRIPT & EXTRACTION MODAL HANDLERS                                    */
+/* ========================================================================= */
+function openTranscriptModal(offerIndex) {
+  if (!lastRunData || !lastRunData.offers || !lastRunData.offers[offerIndex]) return;
+  const o = lastRunData.offers[offerIndex];
+
+  $("modalSupplierTitle").textContent = `Call Transcript · ${o.supplier}`;
+  $("modalCallStatus").textContent = o.status || "—";
+  $("modalCallPhone").textContent = o.phone || "—";
+  $("modalCallId").textContent = o.call_id || "demo-call";
+  $("modalCallRetries").textContent = String(o.retry_count || 0);
+
+  const transcriptEl = $("modalTranscriptText");
+  if (transcriptEl) {
+    transcriptEl.textContent = o.transcript || "[No transcript recorded for this supplier call]";
+  }
+
+  const grid = $("modalExtractedGrid");
+  if (grid) {
+    const fields = o.extracted_fields || {};
+    const fieldKeys = Object.keys(fields);
+    if (!fieldKeys.length) {
+      grid.innerHTML = '<div class="evidence-empty" style="color:var(--text-faint); font-style:italic;">No structured source quotes extracted for this call.</div>';
+    } else {
+      grid.innerHTML = fieldKeys.map(k => {
+        const item = fields[k] || {};
+        const confPct = Math.round((item.confidence || 1.0) * 100);
+        return `
+          <div class="evidence-card">
+            <div class="evidence-head">
+              <span class="evidence-field-name">${esc(k.replace(/_/g, ' '))}</span>
+              <span class="evidence-conf">${confPct}% Conf</span>
+            </div>
+            <div class="evidence-val mono">${esc(safeText(item.value))}</div>
+            <div class="evidence-quote">“${esc(item.source_quote || 'Verbatim quote from call')}”</div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  $("transcriptModal")?.classList.remove("hidden");
+}
+
+function closeTranscriptModal(event) {
+  $("transcriptModal")?.classList.add("hidden");
 }
 
 /* ========================================================================= */

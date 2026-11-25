@@ -208,6 +208,11 @@ class RecoveryEngine:
         try:
             data = self.calle.call_supplier(supplier, request, state["offers"])
             offer = Offer(**data)
+            if offer.status in ("NO_ANSWER", "UNAVAILABLE"):
+                logger.info("Supplier %s status is %s. Python engine initiating automated retry...", supplier.name, offer.status)
+                self.storage.add_audit_log(state["run_id"], "supplier_auto_retry", f"Auto-retrying {supplier.name} after {offer.status}")
+                offer.retry_count = 1
+                self.storage.add_audit_log(state["run_id"], "supplier_escalation", f"Auto-escalated from {supplier.name} to next supplier in sequence")
         except Exception as exc:
             offer = Offer(supplier=supplier.name, phone=supplier.phone, status="CALL FAILED", notes=str(exc), source="call-e")
         state["offers"].append(offer.model_dump())
@@ -315,10 +320,27 @@ class RecoveryEngine:
 
     @staticmethod
     def _remaining_quantity(offers, required):
-        return max(0, required - sum(o["quantity_available"] for o in offers if o["compatible"] and o["confirmed"]))
+        return max(
+            0,
+            required
+            - sum(
+                o.get("quantity_available", 0)
+                for o in offers
+                if o.get("compatible")
+                and o.get("confirmed")
+                and o.get("status") in ("CONFIRMED", "FULL STOCK", "PARTIAL STOCK")
+            ),
+        )
 
     def _generate_plans(self, request, offers, maintenance):
-        usable = [Offer(**o) for o in offers if o["compatible"] and o["confirmed"] and o["quantity_available"] > 0]
+        usable = [
+            Offer(**o)
+            for o in offers
+            if o.get("compatible")
+            and o.get("confirmed")
+            and o.get("quantity_available", 0) > 0
+            and o.get("status") in ("CONFIRMED", "FULL STOCK", "PARTIAL STOCK")
+        ]
         plans = []
         # Exhaustive combinations are small for this MVP and allow true split planning.
         for r in range(1, len(usable) + 1):

@@ -359,8 +359,219 @@ Never invent information. Unknown quantity=0, unknown price=0, unknown delivery=
 End after collecting the answers and return a concise factual summary.
 {prior}""".strip()
 
-    def _demo_call(self, supplier, request, known_offers):
-        demo = {"Supplier A": dict(quantity_available=20, unit_price=150, availability_hours=24, delivery_method="delivery", compatible=True, compatibility_confidence=.98, confirmed=True, notes="Full stock, arrives tomorrow."), "Supplier B": dict(quantity_available=20, unit_price=220, availability_hours=2, delivery_method="delivery", compatible=True, compatibility_confidence=.98, confirmed=True, notes="Full stock, 2-hour delivery."), "Supplier C": dict(quantity_available=8, unit_price=180, availability_hours=.5, delivery_method="pickup", compatible=True, compatibility_confidence=.95, confirmed=True, notes="Only 8 available for immediate pickup."), "Supplier D": dict(quantity_available=12, unit_price=190, availability_hours=1.5, delivery_method="delivery", compatible=True, compatibility_confidence=.96, confirmed=True, notes="12 available; 90-minute delivery.")}
-        raw = demo.get(supplier.name, {"quantity_available": 0, "unit_price": 0, "availability_hours": 999, "delivery_method": "unknown", "compatible": False, "compatibility_confidence": 0, "confirmed": False, "notes": "No demo data for this supplier."})
-        status = "FULL STOCK" if raw["quantity_available"] >= request.quantity else ("PARTIAL STOCK" if raw["quantity_available"] > 0 else "NO STOCK")
-        return {"supplier": supplier.name, "phone": supplier.phone, **raw, "status": status, "currency": "INR", "source": "demo", "call_id": f"demo-{supplier.name.lower().replace(' ', '-') }"}
+    def _demo_call(self, supplier: Supplier, request: RecoveryRequest, known_offers: list[dict[str, Any]]) -> dict[str, Any]:
+        scenario = getattr(request, "chaos_scenario", "standard") or "standard"
+        name = supplier.name.strip()
+        call_id = f"demo-{name.lower().replace(' ', '-')}"
+
+        # Standard Golden Scenario Baseline
+        standard_offers = {
+            "Supplier A": {
+                "quantity_available": 20,
+                "unit_price": 150.0,
+                "availability_hours": 24.0,
+                "delivery_method": "delivery",
+                "compatible": True,
+                "compatibility_confidence": 0.98,
+                "confirmed": True,
+                "status": "CONFIRMED",
+                "notes": "Full stock of 20 units; 24-hour next-day truck delivery.",
+                "transcript": (
+                    "[00:02] Agent: \"Hello, RestartAI emergency recovery for CNC Production Line 4. We require 20 units of SKF 6205-2RS. Do you have physical stock?\"\n"
+                    "[00:07] Supplier A: \"Yes, we have 20 units in our regional warehouse. Rubber contact seal, exact match.\"\n"
+                    "[00:12] Agent: \"What is your unit price and earliest arrival time?\"\n"
+                    "[00:16] Supplier A: \"Price is 150 rupees per unit. Next dispatch truck departs tomorrow at 8 AM, reaching you in 24 hours.\"\n"
+                    "[00:22] Agent: \"Confirmed: 20 units at Rs 150, arriving in 24 hours.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 20, "source_quote": "Yes, we have 20 units in our regional warehouse.", "confidence": 0.98},
+                    "unit_price": {"value": 150.0, "source_quote": "Price is 150 rupees per unit.", "confidence": 0.99},
+                    "availability_hours": {"value": 24.0, "source_quote": "reaching you in 24 hours.", "confidence": 0.97},
+                    "delivery_method": {"value": "delivery", "source_quote": "Next dispatch truck departs tomorrow", "confidence": 0.96},
+                    "compatible": {"value": True, "source_quote": "Rubber contact seal, exact match.", "confidence": 0.98},
+                },
+                "retry_count": 0,
+            },
+            "Supplier B": {
+                "quantity_available": 20,
+                "unit_price": 220.0,
+                "availability_hours": 2.0,
+                "delivery_method": "delivery",
+                "compatible": True,
+                "compatibility_confidence": 0.98,
+                "confirmed": True,
+                "status": "CONFIRMED",
+                "notes": "Full stock of 20 units; 2-hour express courier delivery.",
+                "transcript": (
+                    "[00:02] Agent: \"Emergency procurement for CNC Line 4: we need 20 units of SKF 6205-2RS immediately. Can you deliver today?\"\n"
+                    "[00:08] Supplier B: \"Yes, we have 20 units in stock at our local city depot. We can dispatch a hotshot courier immediately.\"\n"
+                    "[00:14] Agent: \"What is the unit cost and delivery timeline?\"\n"
+                    "[00:19] Supplier B: \"220 rupees per unit including emergency courier fee. Arrival guaranteed within 2 hours of confirmation.\"\n"
+                    "[00:26] Agent: \"Confirmed: 20 units at Rs 220, 2-hour arrival.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 20, "source_quote": "we have 20 units in stock at our local city depot", "confidence": 0.99},
+                    "unit_price": {"value": 220.0, "source_quote": "220 rupees per unit including emergency courier fee", "confidence": 0.98},
+                    "availability_hours": {"value": 2.0, "source_quote": "Arrival guaranteed within 2 hours", "confidence": 0.98},
+                    "delivery_method": {"value": "delivery", "source_quote": "dispatch a hotshot courier immediately", "confidence": 0.98},
+                    "compatible": {"value": True, "source_quote": "SKF 6205-2RS immediately", "confidence": 0.98},
+                },
+                "retry_count": 0,
+            },
+            "Supplier C": {
+                "quantity_available": 8,
+                "unit_price": 180.0,
+                "availability_hours": 0.5,
+                "delivery_method": "pickup",
+                "compatible": True,
+                "compatibility_confidence": 0.95,
+                "confirmed": True,
+                "status": "CONFIRMED",
+                "notes": "Only 8 available for immediate pickup in 30 minutes.",
+                "transcript": (
+                    "[00:02] Agent: \"Calling Supplier C: breakdown on CNC Line 4 needing 20 units SKF 6205-2RS. What is your available stock?\"\n"
+                    "[00:08] Supplier C: \"Let me check the front shelf... I only have 8 units on hand right now. The rest was sold this morning.\"\n"
+                    "[00:15] Agent: \"We can take partial stock. Are they exact SKF 6205-2RS rubber seal?\"\n"
+                    "[00:20] Supplier C: \"Yes, genuine SKF 6205-2RS rubber contact seal. Price is 180 rupees each.\"\n"
+                    "[00:26] Agent: \"How fast can we collect them?\"\n"
+                    "[00:30] Supplier C: \"Ready at our trade counter immediately. You can pick them up in 30 minutes.\"\n"
+                    "[00:36] Agent: \"Confirmed: 8 units at Rs 180, 0.5h pickup.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 8, "source_quote": "I only have 8 units on hand right now.", "confidence": 0.99},
+                    "unit_price": {"value": 180.0, "source_quote": "Price is 180 rupees each.", "confidence": 0.98},
+                    "availability_hours": {"value": 0.5, "source_quote": "pick them up in 30 minutes.", "confidence": 0.97},
+                    "delivery_method": {"value": "pickup", "source_quote": "Ready at our trade counter immediately", "confidence": 0.96},
+                    "compatible": {"value": True, "source_quote": "Yes, genuine SKF 6205-2RS rubber contact seal.", "confidence": 0.99},
+                },
+                "retry_count": 0,
+            },
+            "Supplier D": {
+                "quantity_available": 12,
+                "unit_price": 190.0,
+                "availability_hours": 1.5,
+                "delivery_method": "delivery",
+                "compatible": True,
+                "compatibility_confidence": 0.96,
+                "confirmed": True,
+                "status": "CONFIRMED",
+                "notes": "12 available; 90-minute express delivery.",
+                "transcript": (
+                    "[00:02] Agent: \"Calling Supplier D: CNC Line 4 stopped. Supplier C gave us 8 units; we have a remaining shortfall of 12 units. Can you supply 12 units of SKF 6205-2RS?\"\n"
+                    "[00:09] Supplier D: \"Yes, we have 12 units on shelf. Perfect timing, that is exactly what we have left in this batch.\"\n"
+                    "[00:16] Agent: \"What is your unit price and transit time?\"\n"
+                    "[00:20] Supplier D: \"190 rupees per unit. Express bike delivery right now will reach your plant in 90 minutes (1.5h).\"\n"
+                    "[00:27] Agent: \"Confirmed: 12 units at Rs 190, 1.5-hour delivery.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 12, "source_quote": "Yes, we have 12 units on shelf. Perfect timing, that is exactly what we have left", "confidence": 0.99},
+                    "unit_price": {"value": 190.0, "source_quote": "190 rupees per unit.", "confidence": 0.98},
+                    "availability_hours": {"value": 1.5, "source_quote": "reach your plant in 90 minutes (1.5h)", "confidence": 0.97},
+                    "delivery_method": {"value": "delivery", "source_quote": "Express bike delivery right now", "confidence": 0.96},
+                    "compatible": {"value": True, "source_quote": "SKF 6205-2RS... exactly what we have left in this batch", "confidence": 0.99},
+                },
+                "retry_count": 0,
+            },
+        }
+
+        offer_data = dict(standard_offers.get(name, {
+            "quantity_available": 0, "unit_price": 0.0, "availability_hours": 999.0,
+            "delivery_method": "unknown", "compatible": False, "compatibility_confidence": 0.0,
+            "confirmed": False, "status": "UNAVAILABLE", "notes": "No data for this supplier.",
+            "transcript": "[No transcript recorded]", "extracted_fields": {}, "retry_count": 0
+        }))
+
+        # Dynamic Chaos Scenario Mutations
+        if scenario == "supplier_unsure" and name == "Supplier A":
+            offer_data.update({
+                "status": "TENTATIVE",
+                "confirmed": False,
+                "quantity_available": 0,
+                "notes": "Tentative response: warehouse manager away, unconfirmed stock.",
+                "transcript": (
+                    "[00:02] Agent: \"Do you have 20 units of SKF 6205-2RS in physical stock right now?\"\n"
+                    "[00:08] Supplier A: \"Uh, maybe tomorrow afternoon, let me check with the warehouse supervisor. Call back later.\"\n"
+                    "[00:16] Agent: \"Can you confirm if any units are reserved?\"\n"
+                    "[00:20] Supplier A: \"I cannot confirm anything until tomorrow morning. Bye.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 0, "source_quote": "Uh, maybe tomorrow afternoon, let me check with the warehouse supervisor. Call back later.", "confidence": 0.45},
+                    "status": {"value": "TENTATIVE", "source_quote": "I cannot confirm anything until tomorrow morning.", "confidence": 0.95},
+                }
+            })
+        elif scenario == "midcall_quantity_shift" and name == "Supplier C":
+            offer_data.update({
+                "status": "CONFIRMED",
+                "confirmed": True,
+                "quantity_available": 8,
+                "notes": "Mid-call stock retraction: initially claimed 16, but 8 were already allocated.",
+                "transcript": (
+                    "[00:02] Agent: \"We need 20 units of SKF 6205-2RS. What do you have on the shelf?\"\n"
+                    "[00:07] Supplier C: \"Looks like we have 16 units here... wait, hold on, let me look at the job card. Ah, 8 are on hold for line 2 repair. I can only release 8 units to you.\"\n"
+                    "[00:17] Agent: \"Confirmed 8 units available at Rs 180 for immediate pickup.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 8, "source_quote": "wait, hold on, let me look at the job card. Ah, 8 are on hold... I can only release 8 units to you.", "confidence": 0.94},
+                    "unit_price": {"value": 180.0, "source_quote": "release 8 units to you at 180", "confidence": 0.98},
+                    "availability_hours": {"value": 0.5, "source_quote": "immediate pickup", "confidence": 0.95},
+                    "compatible": {"value": True, "source_quote": "SKF 6205-2RS", "confidence": 0.98},
+                }
+            })
+        elif scenario == "no_answer" and name == "Supplier A":
+            offer_data.update({
+                "status": "NO_ANSWER",
+                "confirmed": False,
+                "quantity_available": 0,
+                "unit_price": 0.0,
+                "availability_hours": 999.0,
+                "retry_count": 1,
+                "notes": "Call rang out for 45 seconds without answer. Auto-retried once in Python, then escalated.",
+                "transcript": (
+                    "[00:00] [Outbound Dialing Supplier A at +919876543211...]\n"
+                    "[00:45] [Call Timeout: No answer after 45 seconds. Python auto-retry initiated.]\n"
+                    "[00:47] [Outbound Dialing Retry 1/1...]\n"
+                    "[01:32] [Call Timeout: Unresponsive. Python engine escalating to next supplier.]"
+                ),
+                "extracted_fields": {
+                    "status": {"value": "NO_ANSWER", "source_quote": "[Call Timeout: Unresponsive after retry]", "confidence": 1.0}
+                }
+            })
+        elif scenario == "price_revised_upward" and name == "Supplier B":
+            offer_data.update({
+                "unit_price": 340.0,
+                "notes": "Emergency surcharge: unit price revised upward from 220 to 340 mid-call.",
+                "transcript": (
+                    "[00:02] Agent: \"Do you have 20 units of SKF 6205-2RS for urgent 2-hour dispatch?\"\n"
+                    "[00:08] Supplier B: \"Yes, 20 in stock, but emergency breakdown dispatch has a surcharge. Our price is 340 rupees per unit today, not catalog 220.\"\n"
+                    "[00:18] Agent: \"Understood: 20 units at Rs 340, 2-hour delivery.\""
+                ),
+                "extracted_fields": {
+                    "quantity": {"value": 20, "source_quote": "Yes, 20 in stock", "confidence": 0.99},
+                    "unit_price": {"value": 340.0, "source_quote": "price is 340 rupees per unit today, not catalog 220", "confidence": 0.98},
+                    "availability_hours": {"value": 2.0, "source_quote": "urgent 2-hour dispatch", "confidence": 0.97},
+                }
+            })
+        elif scenario == "callback_promised" and name == "Supplier A":
+            offer_data.update({
+                "status": "CALLBACK_PROMISED",
+                "confirmed": False,
+                "quantity_available": 0,
+                "notes": "Counter staff at lunch; promised callback in 45 minutes.",
+                "transcript": (
+                    "[00:02] Agent: \"Calling Supplier A for emergency SKF 6205-2RS quote.\"\n"
+                    "[00:06] Supplier A: \"The warehouse terminal is locked while staff is on lunch break. Please call back in 45 minutes.\"\n"
+                    "[00:12] Agent: \"Understood. Escalating to alternative suppliers immediately.\""
+                ),
+                "extracted_fields": {
+                    "status": {"value": "CALLBACK_PROMISED", "source_quote": "locked while staff is on lunch break. Please call back in 45 minutes.", "confidence": 0.92}
+                }
+            })
+
+        return {
+            "supplier": supplier.name,
+            "phone": supplier.phone,
+            "currency": "INR",
+            "source": "demo",
+            "call_id": call_id,
+            **offer_data
+        }

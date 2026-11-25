@@ -74,8 +74,9 @@ class StorageService:
                     INSERT INTO offers (
                         run_id, supplier, phone, quantity_available, unit_price,
                         currency, availability_hours, delivery_method, compatible,
-                        compatibility_confidence, confirmed, status, source, call_id, notes, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        compatibility_confidence, confirmed, status, source, call_id, notes,
+                        transcript, extracted_fields_json, retry_count, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         run_id,
@@ -93,6 +94,9 @@ class StorageService:
                         o.get("source", "demo"),
                         o.get("call_id"),
                         o.get("notes", ""),
+                        o.get("transcript", ""),
+                        json.dumps(o.get("extracted_fields", {})),
+                        int(o.get("retry_count", 0)),
                         now
                     )
                 )
@@ -144,6 +148,9 @@ class StorageService:
                     "source": o["source"],
                     "call_id": o["call_id"],
                     "notes": o["notes"] or "",
+                    "transcript": o["transcript"] if "transcript" in o.keys() and o["transcript"] else "",
+                    "extracted_fields": json.loads(o["extracted_fields_json"]) if "extracted_fields_json" in o.keys() and o["extracted_fields_json"] else {},
+                    "retry_count": o["retry_count"] if "retry_count" in o.keys() else 0,
                 }
                 for o in offer_rows
             ]

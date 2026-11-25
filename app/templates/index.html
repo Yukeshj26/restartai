@@ -246,6 +246,19 @@
           <label for="compat">Specification & Compatibility Criteria</label>
           <textarea id="compat" placeholder="Dimensional and tolerance constraints...">6205-2RS, 25mm bore, 52mm OD, 15mm width. Equivalent brands require confirmation.</textarea>
         </div>
+
+        <div class="form-group span-2">
+          <label for="chaosScenario">Deterministic Chaos Simulation Scenario (Demo Feature)</label>
+          <select id="chaosScenario" class="chaos-select">
+            <option value="standard" selected>Standard Golden Scenario (Clean C + D Split Recovery · 2.0h, ₹13,720)</option>
+            <option value="supplier_unsure">Chaos 1: Supplier Unsure / Tentative Stock ("let me check tomorrow")</option>
+            <option value="midcall_quantity_shift">Chaos 2: Mid-Call Quantity Shift (Shortfall discovery on line)</option>
+            <option value="no_answer">Chaos 3: Unresponsive Supplier (Auto-Retry & Escalation to next)</option>
+            <option value="price_revised_upward">Chaos 4: Emergency Price Hike (+55% breakdown surcharge)</option>
+            <option value="callback_promised">Chaos 5: Counter Closed (Callback promised in 45m)</option>
+          </select>
+          <span class="field-hint">Tests agent resilience under unpredictable supplier conversations with Python-driven auto-retries and escalation.</span>
+        </div>
       </div>
 
       <!-- Collapsible Live Settings -->
@@ -614,6 +627,62 @@
       <input id="chatInput" type="text" placeholder="e.g. Why wasn't Supplier B selected?" autocomplete="off">
       <button type="submit" id="chatSendBtn">Send</button>
     </form>
+  </div>
+</div>
+
+<!-- Call Transcript & Extraction Evidence Modal -->
+<div id="transcriptModal" class="modal-overlay hidden" onclick="closeTranscriptModal(event)">
+  <div class="modal-card transcript-modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">VERBATIM CALL LOG & EXTRACTION EVIDENCE</div>
+        <h2 id="modalSupplierTitle">Call Transcript · Supplier</h2>
+      </div>
+      <button class="modal-close" onclick="closeTranscriptModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Call Metadata Strip -->
+      <div class="call-meta-strip">
+        <div>
+          <small>STATUS</small>
+          <b id="modalCallStatus" class="mono">—</b>
+        </div>
+        <div>
+          <small>PHONE (MASKED)</small>
+          <b id="modalCallPhone" class="mono">—</b>
+        </div>
+        <div>
+          <small>CALL ID</small>
+          <b id="modalCallId" class="mono">—</b>
+        </div>
+        <div>
+          <small>AUTO-RETRIES</small>
+          <b id="modalCallRetries" class="mono">0</b>
+        </div>
+      </div>
+
+      <!-- Dialogue Section -->
+      <div class="transcript-dialogue-section">
+        <h3>Call Audio Transcript</h3>
+        <div id="modalTranscriptText" class="transcript-text mono">
+          [No transcript available]
+        </div>
+      </div>
+
+      <!-- Extracted Ground Truth Strip -->
+      <div class="extracted-evidence-section">
+        <h3>Extracted Ground-Truth & Source Quotes</h3>
+        <p class="hint">Verbatim quotes extracted from dialogue with confidence scores. The Python engine uses only these values.</p>
+        <div id="modalExtractedGrid" class="extracted-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeTranscriptModal()">Close Transcript</button>
+    </div>
   </div>
 </div>
 

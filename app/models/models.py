@@ -1,5 +1,21 @@
-from typing import Optional, List
+from enum import Enum
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, field_validator
+
+
+class OfferStatus(str, Enum):
+    CONFIRMED = "CONFIRMED"
+    TENTATIVE = "TENTATIVE"
+    CONFLICTING = "CONFLICTING"
+    UNAVAILABLE = "UNAVAILABLE"
+    NO_ANSWER = "NO_ANSWER"
+    CALLBACK_PROMISED = "CALLBACK_PROMISED"
+
+
+class ExtractedField(BaseModel):
+    value: Any = None
+    source_quote: str = ""
+    confidence: float = 1.0
 
 
 class Supplier(BaseModel):
@@ -19,6 +35,7 @@ class Supplier(BaseModel):
 
 class RecoveryRequest(BaseModel):
     mode: Optional[str] = None
+    chaos_scenario: Optional[str] = "standard"
     machine: str = Field(min_length=1)
     part_number: str = Field(min_length=1)
     part_description: str = Field(min_length=1)
@@ -69,6 +86,9 @@ class Offer(BaseModel):
     source: str = "demo"
     call_id: Optional[str] = None
     notes: str = ""
+    transcript: str = ""
+    extracted_fields: Dict[str, Any] = Field(default_factory=dict)
+    retry_count: int = 0
 
 
 class PlanLeg(BaseModel):

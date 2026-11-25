@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS offers (
     source TEXT NOT NULL DEFAULT 'demo',
     call_id TEXT,
     notes TEXT DEFAULT '',
+    transcript TEXT DEFAULT '',
+    extracted_fields_json TEXT DEFAULT '{}',
+    retry_count INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
 );
@@ -102,6 +105,18 @@ CREATE INDEX IF NOT EXISTS idx_faults_created ON fault_events(created_at DESC);
 """
 
 
+def _migrate_db(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(offers)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "transcript" not in columns:
+        cursor.execute("ALTER TABLE offers ADD COLUMN transcript TEXT DEFAULT ''")
+    if "extracted_fields_json" not in columns:
+        cursor.execute("ALTER TABLE offers ADD COLUMN extracted_fields_json TEXT DEFAULT '{}'")
+    if "retry_count" not in columns:
+        cursor.execute("ALTER TABLE offers ADD COLUMN retry_count INTEGER DEFAULT 0")
+
+
 def init_db(db_path: Path | None = None) -> None:
     """Initialize SQLite tables and indexes."""
     path = db_path or settings.db_path
@@ -110,6 +125,7 @@ def init_db(db_path: Path | None = None) -> None:
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
         conn.executescript(SCHEMA_SQL)
+        _migrate_db(conn)
         conn.commit()
     logger.info("Database initialized at %s", path)
 

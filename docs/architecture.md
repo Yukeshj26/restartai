@@ -60,3 +60,21 @@ The SENSE subsystem provides automated ingestion of machine stoppage and sensor 
 - **Incident Formulation**: Automatically resolves machine specs, downtime rate (e.g. ₹5,000/hr), and spare part requirements (e.g. SKF 6205-2RS, qty 20) with zero manual data entry.
 - **Auto-Recovery**: If `auto_start=True`, directly kicks off the recovery dialing workflow and persists the fault event linked to the generated `run_id`.
 
+---
+
+## Phase 3: Messy Supplier Conversations & Chaos Simulation
+
+Real emergency procurement calls with suppliers are noisy, ambiguous, and subject to inventory surprises. Phase 3 equips RestartAI with defensible dialogue handling:
+- **Extended Offer Statuses**: `CONFIRMED`, `TENTATIVE` ("maybe tomorrow, let me check"), `CONFLICTING`, `UNAVAILABLE`, `NO_ANSWER`, `CALLBACK_PROMISED`.
+- **Verbatim Audio Transcripts & Ground-Truth Extraction**: Every supplier quote stores the full dialogue transcript and, for every extracted parameter (`quantity`, `unit_price`, `availability_hours`, `delivery_method`, `compatibility`), records the exact verbatim source quote and extraction confidence score.
+- **Python-Driven Escalation & Retries**: Timeouts, no-answers, and unconfirmed tentative offers automatically trigger Python-controlled retries and escalation to subsequent suppliers in the sequence without relying on LLM heuristics.
+- **Deterministic Chaos Scenarios**:
+  - `standard`: The baseline golden scenario (clean C + D split recovery).
+  - `supplier_unsure`: Supplier A returns tentative status (`TENTATIVE`, confidence 0.45); stock is excluded from the plan until confirmed.
+  - `midcall_quantity_shift`: Supplier C discovers mid-call that units are allocated, revising stock from 16 to 8.
+  - `no_answer`: Ringing times out; Python auto-retries with backoff and escalates to the next supplier.
+  - `price_revised_upward`: Supplier B applies an emergency rush surcharge (+55%), altering economic ranking.
+  - `callback_promised`: Counter closed for lunch, callback promised in 45m.
+- **Interactive Transcript Viewer**: The dashboard UI allows operators to inspect audio transcripts, speaker turns, and highlighted evidence quotes with one click.
+
+
