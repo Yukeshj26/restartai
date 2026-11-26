@@ -271,13 +271,13 @@
               </div>
             </div>
 
-            <!-- Operational Dialing Mode Selector (Preserved in DOM, hidden from UI) -->
-            <div class="mode-subpanel" style="display:none;" aria-hidden="true">
+            <!-- Operational Dialing Mode Selector -->
+            <div class="mode-subpanel">
               <div class="mode-row">
                 <label for="mode" class="mode-label">Operational Dialing Mode:</label>
                 <select id="mode" class="mode-select" onchange="updateModeUI()">
-                  <option value="demo" selected>Standard</option>
-                  <option value="live">Live</option>
+                  <option value="demo" selected>Standard (Simulated)</option>
+                  <option value="live">Live (Real Call-E Phone Calls)</option>
                 </select>
               </div>
 
@@ -1356,11 +1356,11 @@
             <textarea id="regCompat" placeholder="e.g. 80mm piston, nitrile rubber or viton">80mm piston, nitrile rubber or viton</textarea>
           </div>
 
-          <div class="form-group span-2" style="display:none;" aria-hidden="true">
+          <div class="form-group span-2">
             <label for="regMode">Telephony Execution Mode</label>
             <select id="regMode" class="mode-select">
-              <option value="demo" selected>Standard</option>
-              <option value="live">Live</option>
+              <option value="demo" selected>Standard (Simulated)</option>
+              <option value="live">Live (Real Call-E Phone Calls)</option>
             </select>
           </div>
         </div>
