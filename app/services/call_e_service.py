@@ -43,6 +43,20 @@ class CalleService:
             "/"
         )
         self.calls: dict[str, dict[str, Any]] = {}
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=60.0,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            )
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     @staticmethod
     def validate_phone(phone: str) -> str:
@@ -116,19 +130,37 @@ class CalleService:
             "additionalProperties": False,
         }
 
+    @staticmethod
+    def _infer_region_and_locale(
+        phone: str, default_region: str = "IN", default_locale: str = "en-IN"
+    ) -> tuple[str, str]:
+        normalized = phone.strip()
+        if normalized.startswith("+91"):
+            return "IN", "en-IN"
+        if normalized.startswith("+1"):
+            return "US", "en-US"
+        if normalized.startswith("+44"):
+            return "GB", "en-GB"
+        if normalized.startswith("+49"):
+            return "DE", "de-DE"
+        return default_region or "IN", default_locale or "en-IN"
+
     def _build_payload(
         self,
         supplier: Supplier,
         request: RecoveryRequest,
         known_offers: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        inferred_region, inferred_locale = self._infer_region_and_locale(
+            supplier.phone, supplier.region, supplier.locale
+        )
         return {
             "task": self._build_task(supplier, request, known_offers),
             "recipients": [
                 {
                     "phones": [supplier.phone],
-                    "region": supplier.region,
-                    "locale": supplier.locale,
+                    "region": supplier.region or inferred_region,
+                    "locale": supplier.locale or inferred_locale,
                 }
             ],
             "result_schema": {
@@ -180,6 +212,7 @@ class CalleService:
         known_offers=None,
         *,
         idempotency_key: str | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> dict[str, Any]:
         phone = self.validate_phone(supplier.phone)
         key = (
@@ -192,12 +225,19 @@ class CalleService:
             self.mask_phone(phone),
         )
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            if client is not None:
                 response = await client.post(
                     f"{self.base_url}/v1/calls",
                     headers=self._headers(key),
                     json=self._build_payload(supplier, request, known_offers or []),
                 )
+            else:
+                async with httpx.AsyncClient(timeout=60.0) as http_client:
+                    response = await http_client.post(
+                        f"{self.base_url}/v1/calls",
+                        headers=self._headers(key),
+                        json=self._build_payload(supplier, request, known_offers or []),
+                    )
         except httpx.TimeoutException as exc:
             raise CallEError(
                 "CALL-E request timed out.", code="network_timeout"
@@ -239,12 +279,19 @@ class CalleService:
         )
         return data
 
-    async def get_call(self, call_id: str) -> dict[str, Any]:
+    async def get_call(
+        self, call_id: str, *, client: httpx.AsyncClient | None = None
+    ) -> dict[str, Any]:
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            if client is not None:
                 response = await client.get(
                     f"{self.base_url}/v1/calls/{call_id}", headers=self._headers()
                 )
+            else:
+                async with httpx.AsyncClient(timeout=60.0) as http_client:
+                    response = await http_client.get(
+                        f"{self.base_url}/v1/calls/{call_id}", headers=self._headers()
+                    )
         except httpx.TimeoutException as exc:
             raise CallEError(
                 "CALL-E status request timed out.", code="network_timeout"
@@ -401,16 +448,26 @@ class CalleService:
         return record
 
     async def wait_for_call(
-        self, call_id: str, *, max_wait_seconds: int = 300, poll_interval: float = 2.0
+        self,
+        call_id: str,
+        *,
+        max_wait_seconds: int = 300,
+        poll_interval: float = 2.0,
+        client: httpx.AsyncClient | None = None,
     ) -> dict[str, Any]:
-        attempts = max(1, int(max_wait_seconds / poll_interval))
-        for attempt in range(attempts):
-            data = await self.get_call(call_id)
+        elapsed = 0.0
+        attempt = 0
+        while elapsed < max_wait_seconds:
+            data = await self.get_call(call_id, client=client)
             record = self._update_record(call_id, data)
             if record["status"] in {"completed", "failed", "canceled"}:
                 return data
-            if attempt < attempts - 1:
-                await asyncio.sleep(poll_interval)
+            # Use responsive 1.0s interval for first 5 checks, then standard poll_interval
+            sleep_duration = 1.0 if attempt < 5 else poll_interval
+            elapsed += sleep_duration
+            attempt += 1
+            if elapsed < max_wait_seconds:
+                await asyncio.sleep(sleep_duration)
         raise CallETimeoutError(
             "CALL-E call did not reach a terminal state within 5 minutes.",
             code="timeout",
@@ -439,12 +496,28 @@ class CalleService:
         known_offers=None,
         *,
         idempotency_key: str | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> dict[str, Any]:
-        created = await self.create_call(
-            supplier, request, known_offers, idempotency_key=idempotency_key
-        )
-        call_id = created.get("id") or created.get("call_id")
-        completed = await self.wait_for_call(call_id)
+        if client is not None:
+            created = await self.create_call(
+                supplier, request, known_offers, idempotency_key=idempotency_key, client=client
+            )
+            call_id = created.get("id") or created.get("call_id")
+            completed = await self.wait_for_call(call_id, client=client)
+        else:
+            async with httpx.AsyncClient(
+                timeout=60.0,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            ) as session_client:
+                created = await self.create_call(
+                    supplier,
+                    request,
+                    known_offers,
+                    idempotency_key=idempotency_key,
+                    client=session_client,
+                )
+                call_id = created.get("id") or created.get("call_id")
+                completed = await self.wait_for_call(call_id, client=session_client)
         status = self._status(completed)
         record = self._update_record(call_id, completed)
         if status != "completed":
@@ -534,7 +607,10 @@ class CalleService:
             live_confirmed=True,
         )
         created = await self.create_call(
-            supplier, request, idempotency_key=f"restartai-test-{phone}-{uuid.uuid4()}"
+            supplier,
+            request,
+            idempotency_key=f"restartai-test-{phone}-{uuid.uuid4()}",
+            client=self._get_client(),
         )
         call_id = created.get("id") or created.get("call_id")
         record = self.calls[call_id]
@@ -546,7 +622,7 @@ class CalleService:
         }
 
     async def test_call_status(self, call_id: str) -> dict[str, Any]:
-        data = await self.get_call(call_id)
+        data = await self.get_call(call_id, client=self._get_client())
         record = self._update_record(call_id, data)
         return {
             "success": True,
@@ -582,13 +658,10 @@ class CalleService:
     def _build_task(self, supplier, request, known_offers):
         prior = ""
         if known_offers:
-            prior = (
-                "\nPreviously confirmed compatible offers (use only as context):\n"
-                + "\n".join(
-                    f"- {x['supplier']}: {x.get('quantity_available', 0)} units, {x.get('unit_price', 0)} {x.get('currency', 'INR')}/unit, {x.get('availability_hours', 999)}h"
-                    for x in known_offers
-                )
-            )
+            prior = " Confirmed context: " + ", ".join(
+                f"{x['supplier']} ({x.get('quantity_available', 0)} units, {x.get('unit_price', 0)} {x.get('currency', 'INR')}, {x.get('availability_hours', 999)}h)"
+                for x in known_offers
+            ) + "."
         remaining = max(
             0,
             request.quantity
@@ -598,31 +671,19 @@ class CalleService:
                 if x.get("compatible") and x.get("confirmed")
             ),
         )
-        return f"""You are RestartAI making a REAL emergency procurement call to {supplier.name}.
-
-THIS IS NOT A CONNECTIVITY TEST. Do not describe this as a test and do not say 'connectivity confirmed'.
-
-Machine: {request.machine}
-EXACT PART NUMBER: {request.part_number}
-Part description: {request.part_description}
-Required quantity: {request.quantity}
-Compatibility/specification notes: {request.compatibility_notes or 'None'}
-Maximum recovery time: {request.max_hours} hours
-Remaining quantity needed: {remaining}
-
-Ask the supplier, conversationally and clearly:
-1. Can you supply the exact part number {request.part_number}?
-2. Does it match the requested specification? If an equivalent is offered, obtain its exact model/specification and do not mark it compatible unless compatibility is explicitly confirmed.
-3. How many units are physically available now?
-4. What is the exact unit price and currency?
-5. How many hours until delivery?
-6. What delivery method will be used?
-7. Can you fulfill the full quantity or only part of it?
-
-Never invent information. Unknown quantity=0, unknown price=0, unknown delivery=999, unknown compatibility='unknown'. Full fulfillment requires explicit confirmation of the full required quantity.
-
-End after collecting the answers and return a concise factual summary.
-{prior}""".strip()
+        return (
+            f"Emergency procurement call to {supplier.name} for machine {request.machine}. "
+            f"Part required: {request.part_number} ({request.part_description or 'bearing/component'}). "
+            f"Target quantity: {request.quantity} units (remaining needed: {remaining}), max allowable delivery: {request.max_hours} hours. "
+            f"Ask the supplier: "
+            f"1. Is exact part {request.part_number} in stock now? "
+            f"2. How many physical units are available immediately? "
+            f"3. What is the unit price and currency? "
+            f"4. What is the delivery ETA in hours and dispatch method? "
+            f"5. Can you fulfill full quantity ({request.quantity}) or partial? "
+            f"Only record factual answers. Unknown quantity=0, unknown price=0, unknown delivery=999. "
+            f"Return a concise factual summary.{prior}"
+        ).strip()
 
     def _demo_call(
         self,
